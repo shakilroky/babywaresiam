@@ -1,200 +1,72 @@
 {
   "categories": [
-    { "id": "cat_newborn", "name": "Newborn Sets (০-৬ মাস)", "slug": "newborn" },
-    { "id": "cat_boy", "name": "Baby Boy (০-২৪ মাস)", "slug": "boy" },
-    { "id": "cat_girl", "name": "Baby Girl (০-২৪ মাস)", "slug": "girl" },
-    { "id": "cat_rompers", "name": "Cute Rompers & Bodysuits", "slug": "rompers" },
-    { "id": "cat_dresses", "name": "Party Dresses & Suits", "slug": "party-wear" },
-    { "id": "cat_accessories", "name": "Shoes, Bibs & Accessories", "slug": "accessories" }
+    {
+      "id": "cat_newborn",
+      "name": "Newborn Sets (০-৬ মাস)",
+      "slug": "newborn",
+      "adult": false,
+      "blurb": "",
+      "image": "/uploads/baby-wear-logo.png"
+    },
+    {
+      "id": "cat_boy",
+      "name": "Baby Boy (০-২৪ মাস)",
+      "slug": "boy",
+      "adult": false,
+      "blurb": "",
+      "image": "/uploads/img_mvggxm3fso47i.webp"
+    },
+    {
+      "id": "cat_girl",
+      "name": "Baby Girl (০-২৪ মাস)",
+      "slug": "girl",
+      "adult": false,
+      "blurb": "",
+      "image": "/uploads/img_mvggxyh9gvehq.webp"
+    }
   ],
   "products": [
     {
-      "id": "bw-101",
-      "slug": "cute-bear-hooded-romper",
-      "name": "Teddy Bear Ear Hooded Baby Romper",
-      "title": "Cute Bear Ear Hooded Baby Bodysuit",
-      "subtitle": "১০০% প্রিমিয়াম সুতি কাপড়ে তৈরি আরামদায়ক বেবি রম্পার",
-      "category": "cat_rompers",
-      "price": 690,
-      "originalPrice": 890,
-      "stock": 35,
-      "featured": true,
-      "badge": "🔥 বেস্ট সেলার",
-      "image": "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80",
+      "name": "Babay ware",
+      "slug": "babay-ware",
+      "price": 1500,
+      "compareAt": 1800,
+      "category": "newborn",
+      "adult": false,
+      "tag": "",
+      "desc": "",
+      "shortDesc": "",
+      "longDesc": "",
+      "size": "",
+      "sku": "",
+      "weight": "",
+      "seoTitle": "",
+      "seoDesc": "",
+      "customDeliveryInside": null,
+      "customDeliveryOutside": null,
+      "variations": [
+        {
+          "id": "v_mvgh18ck_dxt",
+          "title": "0-3 Month / Burgundy",
+          "size": "0-3 Month",
+          "color": "Burgundy",
+          "colorHex": "#111111",
+          "price": 1500,
+          "compareAt": 0,
+          "stock": null,
+          "sku": "",
+          "image": "/uploads/baby-wear-logo.png"
+        }
+      ],
+      "colors": [],
+      "image": "/uploads/baby-wear-logo.png",
       "images": [
-        "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80"
+        "/uploads/baby-wear-logo.png"
       ],
-      "sizes": ["0-3M", "3-6M", "6-12M", "12-18M"],
-      "colors": [
-        { "name": "Sky Blue", "hex": "#60A5FA" },
-        { "name": "Candy Pink", "hex": "#F472B6" },
-        { "name": "Cream Milk", "hex": "#FEF3C7" }
-      ],
-      "desc": "বাচ্চার জন্য অত্যন্ত নরম ও আরামদায়ক থ্রি-ডি বেয়ার ইয়ার হুডেড রম্পার। ডায়াপার পরিবর্তনের সুবিধার্থে নিচে স্ন্যাপ বাটন দেওয়া আছে।"
-    },
-    {
-      "id": "bw-102",
-      "slug": "baby-girl-princess-party-frock",
-      "name": "Princess Bow Floral Party Dress & Headband Set",
-      "title": "Baby Girl Princess Floral Frock with Bow & Headband",
-      "subtitle": "জন্মদিন বা যে কোনো পারিবারিক অনুষ্ঠানের জন্য রাজকীয় ফ্রক",
-      "category": "cat_dresses",
-      "price": 950,
-      "originalPrice": 1250,
-      "stock": 25,
-      "featured": true,
-      "badge": "🎀 পার্টি স্পেশাল",
-      "image": "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["3-6M", "6-12M", "12-18M", "18-24M"],
-      "colors": [
-        { "name": "Baby Pink", "hex": "#F472B6" },
-        { "name": "Peach Rose", "hex": "#FDA4AF" },
-        { "name": "Pure White", "hex": "#FFFFFF" }
-      ],
-      "desc": "সুন্দর সাটিন বো এবং ম্যাচিং হেডব্যান্ড সহ রাজকীয় ডিজাইনের বেবি গার্ল পার্টি ফ্রক। ভেতরের অংশে ১০০% কটন লাইনিং দেওয়া যাতে বাচ্চার গায়ে সফট ফিল হয়।"
-    },
-    {
-      "id": "bw-103",
-      "slug": "gentleman-baby-boy-waistcoat-suit",
-      "name": "Little Gentleman Baby Boy 3-Piece Waistcoat Suit",
-      "title": "Little Gentleman Baby Boy Shirt, Waistcoat & Pant Set",
-      "subtitle": "বিয়ে বা অনুষ্ঠানে আপনার ছোট্ট রাজকুমারের জন্য আকর্ষণীয় স্যুট সেট",
-      "category": "cat_dresses",
-      "price": 1050,
-      "originalPrice": 1390,
-      "stock": 20,
-      "featured": true,
-      "badge": "⭐ টপ রেটেড",
-      "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["6-12M", "12-18M", "18-24M", "2-3Y"],
-      "colors": [
-        { "name": "Classic Navy", "hex": "#1E3A8A" },
-        { "name": "Sky Blue", "hex": "#38BDF8" }
-      ],
-      "desc": "শার্ট, ওয়েস্টকোট, বো-টাই ও নরম আরামদায়ক প্যান্টের সম্পূর্ণ ৩-পিস সেট।"
-    },
-    {
-      "id": "bw-104",
-      "slug": "organic-cotton-newborn-gift-set",
-      "name": "5-Piece Organic Cotton Newborn Welcome Gift Set",
-      "title": "5-Piece Organic Cotton Newborn Baby Gift Box",
-      "subtitle": "নতুন অতিথির জন্য টুপি, মিটেন ও বিব সহ সম্পূর্ণ ওয়েলকাম সেট",
-      "category": "cat_newborn",
-      "price": 890,
-      "originalPrice": 1150,
-      "stock": 40,
-      "featured": true,
-      "badge": "🎁 পারফেক্ট গিফট",
-      "image": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["0-3M", "3-6M"],
-      "colors": [
-        { "name": "Baby Blue", "hex": "#93C5FD" },
-        { "name": "Soft Pink", "hex": "#FBCFE8" },
-        { "name": "Mint Green", "hex": "#A7F3D0" }
-      ],
-      "desc": "ফুল হাতা জামা, প্যান্ট, বেবি ক্যাপ, স্ক্র্যাচ-প্রুফ মিটেন ও নরম বিব সহ ৫-পিসের প্রিমিয়াম সেট।"
-    },
-    {
-      "id": "bw-105",
-      "slug": "cotton-candy-sleepsuits-pack",
-      "name": "Ultra-Soft Breathable Cotton Sleepsuits (Pack of 3)",
-      "title": "Cotton Candy Baby Sleepsuits & Sleepers (3 Pack)",
-      "subtitle": "ঘুমের সময় বাচ্চার নিশ্চিন্ত আরাম নিশ্চিত করতে ব্রিদেবল স্লিপস্যুট",
-      "category": "cat_rompers",
-      "price": 790,
-      "originalPrice": 990,
-      "stock": 30,
-      "featured": false,
-      "badge": "💤 আরামদায়ক ঘুম",
-      "image": "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["0-3M", "3-6M", "6-12M"],
-      "colors": [
-        { "name": "Pastel Mix", "hex": "#BAE6FD" }
-      ],
-      "desc": "বাচ্চার রাতের শান্তির ঘুমের জন্য ৩টি প্রিমিয়াম স্লিপস্যুটের প্যাক।"
-    },
-    {
-      "id": "bw-106",
-      "slug": "baby-boy-dinosaur-print-tshirt-shorts",
-      "name": "Cute Dinosaur Print Baby Boy T-Shirt & Shorts Set",
-      "title": "Summer Playful Dinosaur T-Shirt and Denim Shorts",
-      "subtitle": "গরমে বাচ্চার খেলাধুলা ও ঘরে পরার জন্য কুল ডাইনো সেট",
-      "category": "cat_boy",
-      "price": 550,
-      "originalPrice": 690,
-      "stock": 30,
-      "featured": false,
-      "badge": "🦖 সামার স্পেশাল",
-      "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["6-12M", "12-18M", "18-24M"],
-      "colors": [
-        { "name": "Sky Blue", "hex": "#38BDF8" }
-      ],
-      "desc": "গরমে বাচ্চার জন্য ১০০% পিওর সুতি টি-শার্ট ও স্ট্রেচি আরামদায়ক শর্টস সেট।"
-    },
-    {
-      "id": "bw-107",
-      "slug": "anti-slip-first-walker-baby-shoes",
-      "name": "Anti-Slip Soft Sole Baby First Walker Shoes",
-      "title": "Cute Bear & Bow Anti-Slip Soft Sole Baby Shoes",
-      "subtitle": "বাচ্চার প্রথম হাঁটার জন্য নরম ও আরামদায়ক নন-স্লিপ জুতো",
-      "category": "cat_accessories",
-      "price": 490,
-      "originalPrice": 650,
-      "stock": 45,
-      "featured": true,
-      "badge": "👟 সফট সোল",
-      "image": "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["0-6M", "6-12M", "12-18M"],
-      "colors": [
-        { "name": "Sky Blue Bear", "hex": "#60A5FA" },
-        { "name": "Pink Bow", "hex": "#F472B6" }
-      ],
-      "desc": "বাচ্চার কোমল পায়ের সুরক্ষায় ব্রিদেবল ফেব্রিক এবং নন-স্লিপ রাবার গ্রিপ সোল।"
-    },
-    {
-      "id": "bw-108",
-      "slug": "baby-waterproof-cotton-bibs-pack",
-      "name": "Cute Cartoon Waterproof Cotton Bandana Bibs (Pack of 4)",
-      "title": "Organic Waterproof Baby Bandana Drool Bibs (4 Pack)",
-      "subtitle": "খাবার খাওয়া বা লালা পড়ার সময় বাচ্চার জামা শুকনো রাখতে ওয়াটারপ্রুফ বিব",
-      "category": "cat_accessories",
-      "price": 380,
-      "originalPrice": 480,
-      "stock": 50,
-      "featured": false,
-      "badge": "🍼 বেবি কেয়ার",
-      "image": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
-      "images": [
-        "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80"
-      ],
-      "sizes": ["Free Size"],
-      "colors": [
-        { "name": "Unisex Pastel Mix", "hex": "#FDE68A" }
-      ],
-      "desc": "খাবারের সময় বা দাঁত ওঠার সময় জামা ভিজে যাওয়া থেকে সুরক্ষা দিতে ডাবল-লেয়ার ওয়াটারপ্রুফ বিব সেট।"
+      "stock": null,
+      "lowStockThreshold": 5,
+      "soldOut": false,
+      "id": "pmvgh1kjr"
     }
   ]
 }

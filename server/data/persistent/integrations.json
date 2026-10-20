@@ -1,0 +1,70 @@
+{
+  "email": {
+    "enabled": true,
+    "provider": "resend",
+    "resendApiKey": "",
+    "adminEmail": "metroomaa@gmail.com",
+    "host": "",
+    "port": 587,
+    "secure": false,
+    "user": "",
+    "pass": "",
+    "fromName": "METRROMA",
+    "fromEmail": "admin@metrroma.com"
+  },
+  "sms": {
+    "enabled": false,
+    "url": "",
+    "method": "GET",
+    "senderId": "",
+    "apiKey": "",
+    "templatePlaced": "METRROMA: order {id} received. total {total}. we will call to confirm. track: {track}",
+    "templateStatus": "METRROMA: order {id} is now {status}. {courier}"
+  },
+  "couriers": [],
+  "tracking": {
+    "fbEnabled": false,
+    "fbPixelId": "1122829254194671",
+    "fbToken": "",
+    "fbTestCode": "",
+    "ttkEnabled": false,
+    "ttkPixelId": "",
+    "ttkToken": ""
+  },
+  "fraud": {
+    "enabled": false,
+    "url": "",
+    "method": "GET",
+    "headers": "",
+    "totalPath": "",
+    "successPath": "",
+    "cancelPath": ""
+  },
+  "whatsapp": {
+    "enabled": true,
+    "connected": false,
+    "phone": "",
+    "device": "WhatsApp Web",
+    "pairingCode": "",
+    "triggers": {
+      "incomplete": {
+        "enabled": true,
+        "delayMinutes": 2,
+        "template": "আসসালামু আলাইকুম {name}! {store} থেকে লক্ষ্য করলাম আপনি {items} অর্ডার করার সময় চেকআউট সম্পন্ন করেননি। আপনি কি ক্যাশ অন ডেলিভারিতে অর্ডারটি কনফার্ম করতে চান? মোট মূল্য: ৳{total}।"
+      },
+      "approved": {
+        "enabled": true,
+        "template": "প্রিয় {name}, আপনার অর্ডার #{order_id} সফলভাবে কনফার্ম করা হয়েছে। আমরা দ্রুত পার্সেলটি প্রস্তুত করছি। মোট বিল: ৳{total}। ধন্যবাদ, {store}!"
+      },
+      "shipped": {
+        "enabled": true,
+        "template": "প্রিয় {name}, আপনার অর্ডার #{order_id} কুরিয়ারে ({courier}) বুকিং হয়েছে। ট্র্যাকিং কোড: {consignment}। লাইভ ট্র্যাকিং: {tracking_url}"
+      },
+      "cancelled": {
+        "enabled": true,
+        "template": "প্রিয় {name}, আপনার অর্ডার #{order_id} বাতিল করা হয়েছে। প্রয়োজনে আমাদের সাথে যোগাযোগ করুন। ধন্যবাদ, {store}!"
+      }
+    },
+    "logs": []
+  }
+}

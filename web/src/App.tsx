@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
 // Product Interface
 interface Product {
@@ -28,6 +28,20 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  blurb?: string;
+}
+
+interface Review {
+  id: string;
+  name: string;
+  location?: string;
+  rating: number;
+  text: string;
+  productId?: string;
+  productName?: string;
+  image?: string;
+  verified?: boolean;
+  at?: string;
 }
 
 interface CartItem {
@@ -40,6 +54,8 @@ interface CartItem {
 export function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviewsAvg, setReviewsAvg] = useState(4.9);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,6 +78,17 @@ export function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+
+  // Review Form
+  const [revName, setRevName] = useState('');
+  const [revLocation, setRevLocation] = useState('');
+  const [revRating, setRevRating] = useState(5);
+  const [revProductId, setRevProductId] = useState('');
+  const [revText, setRevText] = useState('');
+  const [revImage, setRevImage] = useState<string>('');
+  const [revSubmitting, setRevSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Cart & Checkout State
   const [cart, setCart] = useState<CartItem[]>(() => {
@@ -104,7 +131,19 @@ export function App() {
     } catch {}
   }, [cart]);
 
-  // Fetch Catalog & Settings
+  // Load Catalog, Settings, & Reviews
+  const loadReviews = async () => {
+    try {
+      const res = await fetch('/api/reviews').then((r) => r.json());
+      if (res && res.reviews) {
+        setReviews(res.reviews);
+        if (res.avg) setReviewsAvg(res.avg);
+      }
+    } catch (e) {
+      console.warn('Failed to load reviews', e);
+    }
+  };
+
   useEffect(() => {
     const fetchStore = async () => {
       try {
@@ -143,21 +182,34 @@ export function App() {
         setLoading(false);
       }
     };
+
     fetchStore();
+    loadReviews();
   }, []);
 
-  // Filtered Products
+  // Filtered Products for Search
   const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
     return products.filter((p) => {
-      const matchCat = activeCategory === 'all' || p.category === activeCategory;
       const matchQuery =
-        !searchQuery.trim() ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.subtitle && p.subtitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (p.sizes && p.sizes.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase())));
-      return matchCat && matchQuery;
+      return matchQuery;
     });
-  }, [products, activeCategory, searchQuery]);
+  }, [products, searchQuery]);
+
+  // Icon Map for Categories
+  const getCatIcon = (slugOrId: string) => {
+    const lower = slugOrId.toLowerCase();
+    if (lower.includes('newborn')) return '🍼';
+    if (lower.includes('romper')) return '🧸';
+    if (lower.includes('dress') || lower.includes('party')) return '👑';
+    if (lower.includes('boy')) return '👦';
+    if (lower.includes('girl')) return '👧';
+    if (lower.includes('access') || lower.includes('shoe')) return '👟';
+    return '👶';
+  };
 
   // Cart Utilities
   const addToCart = (product: Product, customSize?: string, customColor?: string) => {
@@ -192,7 +244,7 @@ export function App() {
   const cartTotalQty = useMemo(() => cart.reduce((sum, i) => sum + i.qty, 0), [cart]);
   const cartSubtotal = useMemo(() => cart.reduce((sum, i) => sum + i.product.price * i.qty, 0), [cart]);
 
-  // 1-Click Instant Order
+  // 1-Click Direct Buy
   const openDirectBuy = (product: Product, customSize?: string, customColor?: string) => {
     const sizeToUse = customSize || selectedSizes[product.id] || product.sizes[0] || 'Standard';
     const colorToUse = customColor || (product.colors && product.colors[0]?.name) || 'Standard';
@@ -330,9 +382,176 @@ export function App() {
     }
   };
 
+  // Handle Photo Select for Review
+  const handleReviewPhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('ছবির সাইজ সর্বোচ্চ ৫ মেগাবাইট হতে পারবে।');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setRevImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submit Real Review
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!revName.trim() || !revText.trim()) {
+      alert('অনুগ্রহ করে আপনার নাম এবং রিভিউ বিবরণ লিখুন।');
+      return;
+    }
+
+    setRevSubmitting(true);
+    try {
+      const matchedProd = products.find((p) => p.id === revProductId);
+      const payload = {
+        name: revName.trim(),
+        location: revLocation.trim() || 'ঢাকা',
+        rating: revRating,
+        productId: revProductId || 'general',
+        productName: matchedProd ? matchedProd.name : 'Baby Wear Collection',
+        text: revText.trim(),
+        image: revImage,
+      };
+
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      }).then((r) => r.json());
+
+      if (res.ok || res.review) {
+        showToast('🎉 ধন্যবাদ! আপনার মূল্যবান রিভিউটি সফলভাবে যুক্ত হয়েছে।');
+        setIsReviewModalOpen(false);
+        setRevName('');
+        setRevLocation('');
+        setRevText('');
+        setRevImage('');
+        setRevRating(5);
+        loadReviews();
+      } else {
+        alert('রিভিউ যুক্ত করতে সমস্যা হয়েছে: ' + (res.error || 'Please try again'));
+      }
+    } catch (err: any) {
+      alert('ত্রুটি: ' + err.message);
+    } finally {
+      setRevSubmitting(false);
+    }
+  };
+
   const whatsappLink = `https://wa.me/${storeSettings.whatsapp}?text=${encodeURIComponent(
     'আসসালামু আলাইকুম, Baby Wear থেকে কিছু পোশাক সম্পর্কে জানতে চাচ্ছি।'
   )}`;
+
+  // Product Card Renderer Component
+  const renderProductCard = (p: Product) => {
+    const curSize = selectedSizes[p.id] || (p.sizes && p.sizes[0]) || 'Standard';
+    const discountPct = p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0;
+    const savings = p.originalPrice > p.price ? p.originalPrice - p.price : 0;
+
+    return (
+      <div key={p.id} className="bw-card">
+        {/* Media */}
+        <div
+          className="bw-card-media"
+          onClick={() => {
+            setQuickViewProduct(p);
+            setQuickViewActiveImg(p.images[0] || p.image || '');
+          }}
+        >
+          {p.badge && <span className="bw-card-badge">{p.badge}</span>}
+          {discountPct > 0 && <span className="bw-card-discount">-{discountPct}% OFF</span>}
+
+          <img
+            src={p.images[0] || p.image}
+            alt={p.name}
+            className="bw-card-img"
+            loading="lazy"
+          />
+        </div>
+
+        {/* Body */}
+        <div className="bw-card-body">
+          {p.fabric && <span className="bw-card-fabric-tag">🌿 {p.fabric.split('(')[0]}</span>}
+
+          <h3
+            className="bw-card-title"
+            title={p.name}
+            onClick={() => {
+              setQuickViewProduct(p);
+              setQuickViewActiveImg(p.images[0] || p.image || '');
+            }}
+          >
+            {p.name}
+          </h3>
+
+          {/* Rating */}
+          <div className="bw-card-meta-row">
+            <span className="bw-card-stars">⭐ {p.rating || 4.9}</span>
+            <span>({p.ratingCount || 50}+ রিভিউ)</span>
+          </div>
+
+          {/* Size Selector */}
+          {p.sizes && p.sizes.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>সাইজ:</span>
+                <span
+                  style={{ fontSize: 11, color: '#0284C7', cursor: 'pointer', fontWeight: 600 }}
+                  onClick={() => setIsSizeGuideOpen(true)}
+                >
+                  📏 সাইজ চার্ট
+                </span>
+              </div>
+              <div className="bw-card-sizes">
+                {p.sizes.map((s) => (
+                  <span
+                    key={s}
+                    className={`bw-size-chip ${curSize === s ? 'selected' : ''}`}
+                    onClick={() => setSelectedSizes((prev) => ({ ...prev, [p.id]: s }))}
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Price */}
+          <div className="bw-price-row">
+            <span className="bw-price-now">৳{p.price}</span>
+            {p.originalPrice > p.price && (
+              <span className="bw-price-old">৳{p.originalPrice}</span>
+            )}
+            {savings > 0 && (
+              <span className="bw-price-save">বাঁচবে ৳{savings}</span>
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="bw-card-actions">
+            <button
+              className="bw-btn-order-now"
+              onClick={() => openDirectBuy(p, curSize)}
+            >
+              ⚡ সরাসরি অর্ডার
+            </button>
+
+            <button
+              className="bw-btn-add-cart"
+              onClick={() => addToCart(p, curSize)}
+            >
+              🛒 কার্ট
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -364,10 +583,7 @@ export function App() {
       {/* Top Announcement Bar */}
       <div className="bw-topbar">
         <div className="bw-topbar-item">
-          👶 ১০০% অর্গানিক নরম সুতি ফেব্রিক · সংবেদনশীল ত্বকে শতভাগ নিরাপদ
-        </div>
-        <div className="bw-topbar-item" style={{ display: 'none' }}>
-          🚚 সারাদেশে দ্রুত হোম ডেলিভারি · ফ্রি ডেলিভারি ৳২,০০০+ অর্ডারে
+          👶 ১০০% অর্গানিক নরম সুতি ফেব্রিক · সংবেদনশীল ত্বকে শতভাগ নিরাপদ · ফ্রি ডেলিভারি ৳২,০০০+ অর্ডারে
         </div>
         <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
           📞 হটলাইন: {storeSettings.hotline}
@@ -465,6 +681,7 @@ export function App() {
                 className="bw-btn bw-btn-pink"
                 onClick={(e) => {
                   e.preventDefault();
+                  setActiveCategory('all');
                   document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
@@ -475,7 +692,7 @@ export function App() {
                 className="bw-btn bw-btn-blue"
                 onClick={() => {
                   setActiveCategory('cat_newborn');
-                  document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+                  document.getElementById('cat-cat_newborn')?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
                 🎁 নিউবর্ন গিফট সেট
@@ -555,21 +772,18 @@ export function App() {
           </div>
 
           {categories.map((c) => {
-            const iconMap: Record<string, string> = {
-              newborn: '🍼',
-              boy: '👦',
-              girl: '👧',
-              rompers: '🧸',
-              'party-wear': '👑',
-              accessories: '👟',
-            };
+            const icon = getCatIcon(c.slug || c.id);
             return (
               <div
                 key={c.id}
                 className={`bw-story-card ${activeCategory === c.id ? 'active' : ''}`}
-                onClick={() => setActiveCategory(c.id)}
+                onClick={() => {
+                  setActiveCategory(c.id);
+                  const el = document.getElementById(`cat-${c.id}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
-                <div className="bw-story-avatar">{iconMap[c.slug] || '👶'}</div>
+                <div className="bw-story-avatar">{icon}</div>
                 <span className="bw-story-title">{c.name.split('(')[0].trim()}</span>
               </div>
             );
@@ -585,187 +799,181 @@ export function App() {
             <span style={{ color: '#EC4899' }}>বেবি ওয়্যার কালেকশন</span>
           </h2>
           <p className="bw-section-subtitle">
-            বয়স, সাইজ ও ফেব্রিক অনুযায়ী আপনার ছোট্ট সোনামণির জন্য সেরা পোশাকটি বেছে নিন
+            বয়স, সাইজ ও ফেব্রিক অনুযায়ী সাজানো আমাদের প্রতিটি ক্যাটাগরি এক্সপ্লোর করুন
           </p>
         </div>
       </section>
 
-      {/* Product Grid */}
-      <section className="bw-product-grid">
-        {loading ? (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', fontSize: 18, color: '#64748B' }}>
-            👶 লোড হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', fontSize: 16, color: '#64748B' }}>
-            কোনো পণ্য পাওয়া যায়নি। অন্য ক্যাটাগরি বেছে নিন।
-          </div>
-        ) : (
-          filteredProducts.map((p) => {
-            const curSize = selectedSizes[p.id] || (p.sizes && p.sizes[0]) || 'Standard';
-            const discountPct = p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0;
-            const savings = p.originalPrice > p.price ? p.originalPrice - p.price : 0;
+      {/* HOMEPAGE ORGANIZED CATEGORY-BY-CATEGORY */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 0', fontSize: 18, color: '#64748B' }}>
+          👶 লোড হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন
+        </div>
+      ) : searchQuery.trim() ? (
+        /* If Searching, show unified search results */
+        <section className="bw-product-grid">
+          {filteredProducts.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', fontSize: 16, color: '#64748B' }}>
+              "{searchQuery}" এর জন্য কোনো পণ্য পাওয়া যায়নি।
+            </div>
+          ) : (
+            filteredProducts.map(renderProductCard)
+          )}
+        </section>
+      ) : activeCategory !== 'all' ? (
+        /* If Single Category selected */
+        <section className="bw-cat-block">
+          {(() => {
+            const catObj = categories.find((c) => c.id === activeCategory);
+            const catProds = products.filter((p) => p.category === activeCategory);
+            const catIcon = getCatIcon(catObj?.slug || activeCategory);
 
             return (
-              <div key={p.id} className="bw-card">
-                {/* Media */}
-                <div
-                  className="bw-card-media"
-                  onClick={() => {
-                    setQuickViewProduct(p);
-                    setQuickViewActiveImg(p.images[0] || p.image || '');
-                  }}
-                >
-                  {p.badge && <span className="bw-card-badge">{p.badge}</span>}
-                  {discountPct > 0 && <span className="bw-card-discount">-{discountPct}% OFF</span>}
-
-                  <img
-                    src={p.images[0] || p.image}
-                    alt={p.name}
-                    className="bw-card-img"
-                    loading="lazy"
-                  />
+              <div>
+                <div className="bw-cat-block-header">
+                  <div className="bw-cat-block-title-box">
+                    <div className="bw-cat-block-icon">{catIcon}</div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <h3 className="bw-cat-block-title">{catObj?.name || 'কালেকশন'}</h3>
+                        <span className="bw-cat-block-badge">{catProds.length} টি পণ্য</span>
+                      </div>
+                      <p className="bw-cat-block-subtitle">১০০% প্রিমিয়াম সুতি কাপড়ে তৈরি আরামদায়ক পোশাক</p>
+                    </div>
+                  </div>
+                  <button className="bw-cat-block-viewall" onClick={() => setActiveCategory('all')}>
+                    ← সব ক্যাটাগরি দেখুন
+                  </button>
                 </div>
 
-                {/* Body */}
-                <div className="bw-card-body">
-                  {p.fabric && <span className="bw-card-fabric-tag">🌿 {p.fabric.split('(')[0]}</span>}
-
-                  <h3
-                    className="bw-card-title"
-                    title={p.name}
-                    onClick={() => {
-                      setQuickViewProduct(p);
-                      setQuickViewActiveImg(p.images[0] || p.image || '');
-                    }}
-                  >
-                    {p.name}
-                  </h3>
-
-                  {/* Rating & Reviews */}
-                  <div className="bw-card-meta-row">
-                    <span className="bw-card-stars">⭐ {p.rating || 4.9}</span>
-                    <span>({p.ratingCount || 50}+ রিভিউ)</span>
-                  </div>
-
-                  {/* Size Selector Chips */}
-                  {p.sizes && p.sizes.length > 0 && (
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>সাইজ বেছে নিন:</span>
-                        <span
-                          style={{ fontSize: 11, color: '#0284C7', cursor: 'pointer', fontWeight: 600 }}
-                          onClick={() => setIsSizeGuideOpen(true)}
-                        >
-                          📏 সাইজ গাইড
-                        </span>
-                      </div>
-                      <div className="bw-card-sizes">
-                        {p.sizes.map((s) => (
-                          <span
-                            key={s}
-                            className={`bw-size-chip ${curSize === s ? 'selected' : ''}`}
-                            onClick={() => setSelectedSizes((prev) => ({ ...prev, [p.id]: s }))}
-                          >
-                            {s}
-                          </span>
-                        ))}
-                      </div>
+                <div className="bw-product-grid" style={{ padding: 0 }}>
+                  {catProds.length === 0 ? (
+                    <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: '#64748B' }}>
+                      এই ক্যাটাগরিতে পণ্য যুক্ত করা হচ্ছে।
                     </div>
+                  ) : (
+                    catProds.map(renderProductCard)
                   )}
-
-                  {/* Price */}
-                  <div className="bw-price-row">
-                    <span className="bw-price-now">৳{p.price}</span>
-                    {p.originalPrice > p.price && (
-                      <span className="bw-price-old">৳{p.originalPrice}</span>
-                    )}
-                    {savings > 0 && (
-                      <span className="bw-price-save">বাঁচবে ৳{savings}</span>
-                    )}
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="bw-card-actions">
-                    <button
-                      className="bw-btn-order-now"
-                      onClick={() => openDirectBuy(p, curSize)}
-                    >
-                      ⚡ সরাসরি অর্ডার
-                    </button>
-
-                    <button
-                      className="bw-btn-add-cart"
-                      onClick={() => addToCart(p, curSize)}
-                    >
-                      🛒 কার্ট
-                    </button>
-                  </div>
                 </div>
               </div>
             );
-          })
-        )}
-      </section>
+          })()}
+        </section>
+      ) : (
+        /* Default: Categorized Homepage Shelf Display */
+        <div>
+          {categories.map((cat) => {
+            const catProds = products.filter((p) => p.category === cat.id || p.category === cat.slug);
+            if (catProds.length === 0) return null;
+            const catIcon = getCatIcon(cat.slug || cat.id);
 
-      {/* Verified Parent Reviews Section */}
-      <section style={{ maxWidth: 1280, margin: '20px auto 60px', padding: '0 24px' }}>
-        <div className="bw-section-header">
-          <h2 className="bw-section-title">
-            <span style={{ color: '#EC4899' }}>হ্যাপি প্যারেন্টস </span>
-            <span style={{ color: '#0284C7' }}>ফিডব্যাক ও অভিজ্ঞতা</span>
-          </h2>
-          <p className="bw-section-subtitle">আমাদের পোশাক পরে সোনামণিদের মা-বাবারা যা বলছেন</p>
+            return (
+              <section key={cat.id} id={`cat-${cat.id}`} className="bw-cat-block">
+                <div className="bw-cat-block-header">
+                  <div className="bw-cat-block-title-box">
+                    <div className="bw-cat-block-icon">{catIcon}</div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <h3 className="bw-cat-block-title">{cat.name}</h3>
+                        <span className="bw-cat-block-badge">{catProds.length} টি পণ্য</span>
+                      </div>
+                      <p className="bw-cat-block-subtitle">
+                        {cat.blurb || 'আপনার সোনামণির জন্য সবচেয়ে নরম ও আরামদায়ক পোশাক'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    className="bw-cat-block-viewall"
+                    onClick={() => setActiveCategory(cat.id)}
+                  >
+                    সব দেখুন ({catProds.length}) →
+                  </button>
+                </div>
+
+                <div className="bw-product-grid" style={{ padding: 0 }}>
+                  {catProds.map(renderProductCard)}
+                </div>
+              </section>
+            );
+          })}
+        </div>
+      )}
+
+      {/* REAL PARENT FEEDBACK & UPLOAD SECTION */}
+      <section className="bw-reviews-container">
+        <div className="bw-reviews-header-row">
+          <div>
+            <h2 className="bw-section-title" style={{ textAlign: 'left', marginBottom: 4 }}>
+              <span style={{ color: '#EC4899' }}>রিয়েল প্যারেন্টস </span>
+              <span style={{ color: '#0284C7' }}>ফিডব্যাক ও অভিজ্ঞতা</span>
+            </h2>
+            <p className="bw-section-subtitle" style={{ textAlign: 'left' }}>
+              আমাদের গ্রাহকদের আসল অভিজ্ঞতা ও ছবি · রেটিং: <b>⭐ {reviewsAvg}/৫</b> ({reviews.length}+ রিভিউ)
+            </p>
+          </div>
+
+          <button
+            className="bw-btn bw-btn-pink"
+            onClick={() => setIsReviewModalOpen(true)}
+          >
+            ✍️ আপনার অভিজ্ঞতা শেয়ার করুন / রিভিউ লিখুন
+          </button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-          <div className="bw-card" style={{ padding: 24 }}>
-            <div style={{ color: '#F59E0B', fontSize: 17, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
-            <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16 }}>
-              "কাপড়টা আসলেই অনেক বেশি সফট! আমার ৪ মাসের ছেলের জন্য টেডি রম্পারটা নিয়েছিলাম। বাচ্চার ত্বকে কোনো চুলকানি বা অস্বস্তি হয়নি। ওয়াশের পরেও কালার নষ্ট হয়নি।"
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0369A1' }}>
-                ফা
-              </div>
-              <div>
-                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>ফারজানা ইয়াসমিন</b>
-                <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>✓ ভেরিফাইড বায়ার · ধানমন্ডি, ঢাকা</span>
-              </div>
+        <div className="bw-reviews-grid">
+          {reviews.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px 0', color: '#64748B' }}>
+              এখনো কোনো রিভিউ দেওয়া হয়নি। প্রথম রিভিউটি আপনি দিন!
             </div>
-          </div>
+          ) : (
+            reviews.map((rev) => (
+              <div key={rev.id} className="bw-review-card">
+                {/* Uploaded Baby Photo if available */}
+                {rev.image && (
+                  <img
+                    src={rev.image}
+                    alt="Customer feedback"
+                    className="bw-review-photo"
+                    loading="lazy"
+                  />
+                )}
 
-          <div className="bw-card" style={{ padding: 24 }}>
-            <div style={{ color: '#F59E0B', fontSize: 17, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
-            <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16 }}>
-              "মেয়ের ১ম জন্মদিনের জন্য প্রিন্সেস ফ্রকটি নিয়েছিলাম। মাশাআল্লাহ হুবহু ছবির মতোই সুন্দর! ইনার কটন লাইনিং থাকায় পুরো অনুষ্ঠান বাবু হাসিমুখে পার করেছে।"
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FBCFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#BE185D' }}>
-                না
-              </div>
-              <div>
-                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>নাফিসা তাবাসসুম</b>
-                <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>✓ ভেরিফাইড বায়ার · পাঁচলাইশ, চট্টগ্রাম</span>
-              </div>
-            </div>
-          </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div style={{ color: '#F59E0B', fontSize: 16 }}>
+                    {'⭐'.repeat(rev.rating || 5)}
+                  </div>
+                  {rev.productName && (
+                    <span style={{ fontSize: 11, background: '#F0F9FF', color: '#0284C7', padding: '2px 8px', borderRadius: 99, fontWeight: 600 }}>
+                      {rev.productName}
+                    </span>
+                  )}
+                </div>
 
-          <div className="bw-card" style={{ padding: 24 }}>
-            <div style={{ color: '#F59E0B', fontSize: 17, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
-            <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16 }}>
-              "নতুন অতিথির জন্য ৫-পিস নিউবর্ন গিফট বক্সটি নিয়েছিলাম। উপহারের বক্স প্যাকেজিং অনেক আভিজাত্যপূর্ণ এবং ডেলিভারিও মাত্র ২ দিনে পেয়েছি।"
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#A7F3D0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#047857' }}>
-                তা
+                <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16, flex: 1 }}>
+                  "{rev.text}"
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderTop: '1px solid #F1F5F9', paddingTop: 12 }}>
+                  <div
+                    className="bw-review-avatar"
+                    style={{
+                      background: 'linear-gradient(135deg, #BAE6FD, #FBCFE8)',
+                      color: '#0F3A66',
+                    }}
+                  >
+                    {rev.name ? rev.name.charAt(0) : 'প'}
+                  </div>
+                  <div>
+                    <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>{rev.name}</b>
+                    <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>
+                      ✓ ভেরিফাইড বায়ার · {rev.location || 'ঢাকা'}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>তানজিনা চৌধুরী</b>
-                <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>✓ ভেরিফাইড বায়ার · মিরপুর, ঢাকা</span>
-              </div>
-            </div>
-          </div>
+            ))
+          )}
         </div>
       </section>
 
@@ -815,6 +1023,129 @@ export function App() {
           ⚡ অর্ডার করুন {cartTotalQty > 0 ? `(${cartTotalQty})` : ''}
         </button>
       </div>
+
+      {/* Write a Review Modal */}
+      {isReviewModalOpen && (
+        <div className="bw-modal-backdrop" onClick={() => setIsReviewModalOpen(false)}>
+          <div className="bw-modal-card" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
+            <button className="bw-modal-close" onClick={() => setIsReviewModalOpen(false)}>
+              ✕
+            </button>
+
+            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 4 }}>
+              ✍️ আপনার অভিজ্ঞতা ও রিভিউ শেয়ার করুন
+            </h3>
+            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 18 }}>
+              আপনার মতামত ও ছবি অন্যান্য মা-বাবাদের সঠিক সিদ্ধান্ত নিতে সাহায্য করবে
+            </p>
+
+            <form onSubmit={handleSubmitReview}>
+              <label className="bw-form-label">কোন পোশাকটি কিনেছেন?</label>
+              <select
+                className="bw-input"
+                value={revProductId}
+                onChange={(e) => setRevProductId(e.target.value)}
+              >
+                <option value="">(সাধারণ / কালেকশন রিভিউ)</option>
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} (৳{p.price})
+                  </option>
+                ))}
+              </select>
+
+              <label className="bw-form-label">আপনার নাম *</label>
+              <input
+                className="bw-input"
+                placeholder="যেমন: তানজিলা আহমেদ"
+                required
+                value={revName}
+                onChange={(e) => setRevName(e.target.value)}
+              />
+
+              <label className="bw-form-label">আপনার জেলা বা এলাকা</label>
+              <input
+                className="bw-input"
+                placeholder="যেমন: ধানমন্ডি, ঢাকা বা চট্টগ্রাম"
+                value={revLocation}
+                onChange={(e) => setRevLocation(e.target.value)}
+              />
+
+              <label className="bw-form-label">আপনার রেটিং নির্বাচন করুন</label>
+              <div className="bw-star-picker">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <span
+                    key={star}
+                    className="bw-star-item"
+                    style={{ color: star <= revRating ? '#F59E0B' : '#CBD5E1' }}
+                    onClick={() => setRevRating(star)}
+                  >
+                    ★
+                  </span>
+                ))}
+                <span style={{ fontSize: 13, color: '#64748B', marginLeft: 8, alignSelf: 'center' }}>
+                  ({revRating}/৫ স্টার)
+                </span>
+              </div>
+
+              <label className="bw-form-label">বাবুর পরা ছবি বা আনবক্সিং ছবি যুক্ত করুন (ঐচ্ছিক)</label>
+              <div
+                className="bw-upload-dropzone"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {revImage ? (
+                  <div>
+                    <img
+                      src={revImage}
+                      alt="Preview"
+                      style={{ maxHeight: 120, borderRadius: 8, margin: '0 auto 8px', display: 'block' }}
+                    />
+                    <span style={{ fontSize: 12, color: '#0284C7', fontWeight: 600 }}>
+                      ✓ ছবি সিলেক্ট হয়েছে (পরিবর্তন করতে ক্লিক করুন)
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize: 28, marginBottom: 4 }}>📸</div>
+                    <span style={{ fontSize: 13, color: '#0284C7', fontWeight: 700 }}>
+                      + ছবি আপলোড করতে এখানে ক্লিক করুন
+                    </span>
+                    <p style={{ fontSize: 11, color: '#94A3B8', margin: '4px 0 0' }}>
+                      PNG, JPG সর্বোচ্চ ৫ মেগাবাইট
+                    </p>
+                  </div>
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleReviewPhotoSelect}
+                />
+              </div>
+
+              <label className="bw-form-label">আপনার রিভিউ বা মন্তব্য *</label>
+              <textarea
+                className="bw-input"
+                rows={3}
+                placeholder="কাপড়ের মান, সাইজ এবং ফিটিংস সম্পর্কে আপনার অনুভূতি লিখুন..."
+                required
+                value={revText}
+                onChange={(e) => setRevText(e.target.value)}
+              />
+
+              <button
+                type="submit"
+                disabled={revSubmitting}
+                className="bw-btn bw-btn-pink"
+                style={{ width: '100%', padding: '14px', fontSize: 16 }}
+              >
+                {revSubmitting ? 'রিভিউ জমা হচ্ছে…' : '✓ রিভিউ পাবলিশ করুন'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Quick View Product Modal */}
       {quickViewProduct && (
@@ -1451,42 +1782,21 @@ export function App() {
           <div>
             <h4 style={{ fontSize: 15, color: '#F8FAFC', marginBottom: 14 }}>কুইক লিংক</h4>
             <ul style={{ listStyle: 'none', fontSize: 13, color: '#94A3B8', lineHeight: 2 }}>
-              <li>
-                <a
-                  href="#catalog"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                  onClick={() => setActiveCategory('cat_newborn')}
-                >
-                  নিউবর্ন গিফট সেট
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#catalog"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                  onClick={() => setActiveCategory('cat_rompers')}
-                >
-                  বেবি রম্পার ও স্লিপস্যুট
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#catalog"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                  onClick={() => setActiveCategory('cat_dresses')}
-                >
-                  পার্টি ফ্রক ও স্যুট
-                </a>
-              </li>
-              <li>
-                <a
-                  href="#catalog"
-                  style={{ color: 'inherit', textDecoration: 'none' }}
-                  onClick={() => setActiveCategory('cat_accessories')}
-                >
-                  জুতো ও বেবি এক্সেসরিজ
-                </a>
-              </li>
+              {categories.slice(0, 5).map((c) => (
+                <li key={c.id}>
+                  <a
+                    href={`#cat-${c.id}`}
+                    style={{ color: 'inherit', textDecoration: 'none' }}
+                    onClick={() => {
+                      setActiveCategory('all');
+                      const el = document.getElementById(`cat-${c.id}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    {c.name}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -1501,6 +1811,11 @@ export function App() {
               <li>
                 <span style={{ cursor: 'pointer' }} onClick={() => setShowTrackModal(true)}>
                   📦 অর্ডার লাইভ ট্র্যাকিং
+                </span>
+              </li>
+              <li>
+                <span style={{ cursor: 'pointer' }} onClick={() => setIsReviewModalOpen(true)}>
+                  ✍️ কাস্টমার রিভিউ দিন
                 </span>
               </li>
               <li>🔄 ৭ দিনের সাইজ এক্সচেঞ্জ</li>

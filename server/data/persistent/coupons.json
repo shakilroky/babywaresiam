@@ -1,0 +1,16 @@
+[
+  {
+    "code": "BABYFIRST",
+    "type": "percent",
+    "value": 10,
+    "minTotal": 500,
+    "active": true
+  },
+  {
+    "code": "CUTE100",
+    "type": "flat",
+    "value": 100,
+    "minTotal": 1000,
+    "active": true
+  }
+]

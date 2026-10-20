@@ -5246,19 +5246,19 @@ function ProductForm({ product, cats, onClose, onSaved }: { product: any; cats: 
   };
 
   const COLOR_PRESETS = [
-    { name: 'Jet Black', hex: '#111111' },
-    { name: 'Deep Maroon', hex: '#58111A' },
-    { name: 'Emerald Green', hex: '#1B4D3E' },
-    { name: 'Navy Blue', hex: '#1A2B4C' },
-    { name: 'Dusty Rose', hex: '#DCAE96' },
-    { name: 'Desert Beige', hex: '#D9CBB7' },
-    { name: 'Pearl White', hex: '#F8F9FA' },
-    { name: 'Olive Green', hex: '#556B2F' },
-    { name: 'Mocha Brown', hex: '#4A2E1B' },
-    { name: 'Charcoal Grey', hex: '#495057' },
+    { name: 'Sky Blue', hex: '#38BDF8' },
+    { name: 'Baby Pink', hex: '#F472B6' },
+    { name: 'Cream Milk', hex: '#FEF3C7' },
+    { name: 'Mint Green', hex: '#A7F3D0' },
+    { name: 'Peach Rose', hex: '#FDA4AF' },
+    { name: 'Pure White', hex: '#FFFFFF' },
+    { name: 'Classic Navy', hex: '#1E3A8A' },
+    { name: 'Lemon Yellow', hex: '#FDE047' },
+    { name: 'Lavender', hex: '#E9D5FF' },
+    { name: 'Soft Grey', hex: '#E2E8F0' },
   ];
 
-  const TAG_PRESETS = ['Bestseller', 'New Arrival', 'Trending', 'Luxury Silk', 'Exclusive Offer', 'Limited Edition'];
+  const TAG_PRESETS = ['🔥 বেস্ট সেলার', '🎀 নিউ কালেকশন', '⭐ টপ রেটেড', '🎁 গিফট প্যাক', '🌿 ১০০% অর্গানিক সুতি', '🧸 কিউট রম্পার', '👑 পার্টি স্পেশাল'];
 
   const addColorOption = (col: { name: string; hex: string; image?: string }) => {
     const existing = f.colors || [];
@@ -5414,7 +5414,11 @@ function ProductForm({ product, cats, onClose, onSaved }: { product: any; cats: 
         });
       });
     });
-    setF((s: any) => ({ ...s, variations: newVars }));
+    setF((s: any) => ({
+      ...s,
+      variations: newVars,
+      sizes: Array.from(new Set([...(s.sizes || []), ...sizes])),
+    }));
   };
 
   const applyBulkVariantPrice = () => {
@@ -6490,14 +6494,17 @@ function ProductForm({ product, cats, onClose, onSaved }: { product: any; cats: 
                     </p>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['50', '52', '54', '56'])}>
-                      ⚡ Matrix: Abaya Sizes (50-56)
+                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['0-3M', '3-6M', '6-12M', '12-18M'])}>
+                      👶 Matrix: Baby Romper (0-18M)
                     </button>
-                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['38', '40', '42', '44', '46'])}>
-                      ⚡ Matrix: Panjabi Sizes (38-46)
+                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['6-12M', '12-18M', '18-24M', '2-3Y'])}>
+                      👦 Matrix: Toddler (6M-3Y)
                     </button>
-                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['S', 'M', 'L', 'XL', 'XXL'])}>
-                      ⚡ Matrix: S-XXL
+                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['0-6M', '6-12M', '12-18M'])}>
+                      👟 Matrix: Baby Shoes
+                    </button>
+                    <button type="button" className="sa-btn ghost sa-mini" onClick={() => generateColorSizeMatrix(['Free Size'])}>
+                      🎁 Matrix: Free Size
                     </button>
                   </div>
                 </div>

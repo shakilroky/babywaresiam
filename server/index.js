@@ -1812,25 +1812,82 @@ app.delete('/api/coupons/:code', adminAuth, requireRole('owner', 'manager'), (re
   saveCoupons(getCoupons().filter((c) => c.code !== req.params.code));
   res.json({ ok: true });
 });
+app.get('/api/reviews', (req, res) => {
+  const all = getReviews() || {};
+  const pid = req.query.pid ? String(req.query.pid).trim() : '';
+  if (pid) {
+    const list = all[pid] || [];
+    const avg = list.length ? list.reduce((s, r) => s + (r.rating || 5), 0) / list.length : 0;
+    return res.json({ count: list.length, avg: Math.round(avg * 10) / 10, reviews: list });
+  }
+  const flattened = [];
+  for (const [prodId, revs] of Object.entries(all)) {
+    if (Array.isArray(revs)) {
+      revs.forEach((r) => flattened.push({ ...r, productId: prodId }));
+    }
+  }
+  flattened.sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
+  const avg = flattened.length ? flattened.reduce((s, r) => s + (r.rating || 5), 0) / flattened.length : 5.0;
+  res.json({ count: flattened.length, avg: Math.round(avg * 10) / 10, reviews: flattened });
+});
 app.get('/api/reviews/:pid', (req, res) => {
   const list = getReviews()[req.params.pid] || [];
-  const avg = list.length ? list.reduce((s, r) => s + r.rating, 0) / list.length : 0;
+  const avg = list.length ? list.reduce((s, r) => s + (r.rating || 5), 0) / list.length : 0;
   res.json({ count: list.length, avg: Math.round(avg * 10) / 10, reviews: list });
 });
 app.post('/api/reviews', (req, res) => {
   const b = req.body || {};
-  const pid = String(b.productId || '').trim();
-  const rating = Math.max(1, Math.min(5, parseInt(b.rating, 10) || 0));
-  const name = String(b.name || '').trim().slice(0, 40);
-  const text = String(b.text || '').trim().slice(0, 500);
-  if (!pid || !rating || !name) return res.status(400).json({ error: 'name and rating required' });
-  const all = getReviews(); const list = all[pid] || [];
-  list.unshift({ id: randomUUID().slice(0, 8), name, rating, text, at: new Date().toISOString() });
-  all[pid] = list; saveReviews(all);
-  res.status(201).json({ ok: true });
+  const pid = String(b.productId || 'general').trim();
+  const rating = Math.max(1, Math.min(5, parseInt(b.rating, 10) || 5));
+  const name = String(b.name || '').trim().slice(0, 60);
+  const location = String(b.location || 'ঢাকা').trim().slice(0, 80);
+  const text = String(b.text || '').trim().slice(0, 1000);
+  const productName = String(b.productName || '').trim().slice(0, 120);
+  if (!name || !text) return res.status(400).json({ error: 'Name and review text are required' });
+
+  let savedImgUrl = '';
+  if (b.image && typeof b.image === 'string' && b.image.startsWith('data:image/')) {
+    try {
+      const match = b.image.match(/^data:(?:image\/(png|jpe?g|webp|gif|avif));base64,(.+)$/i);
+      if (match) {
+        let ext = match[1].toLowerCase();
+        if (ext === 'jpeg') ext = 'jpg';
+        const imgName = `rev_${Date.now()}_${randomUUID().slice(0, 6)}.${ext}`;
+        const buf = Buffer.from(match[2], 'base64');
+        writeFileSync(join(UPLOADS, imgName), buf);
+        try { writeFileSync(join(PERSISTENT_UPLOADS, imgName), buf); } catch {}
+        savedImgUrl = `/uploads/${imgName}`;
+      }
+    } catch (e) {
+      console.warn('Failed to save review image:', e);
+    }
+  } else if (b.image && typeof b.image === 'string' && (b.image.startsWith('http') || b.image.startsWith('/uploads'))) {
+    savedImgUrl = b.image;
+  }
+
+  const all = getReviews();
+  const list = all[pid] || [];
+  const newRev = {
+    id: 'rev_' + randomUUID().slice(0, 8),
+    name,
+    location,
+    rating,
+    text,
+    productName,
+    image: savedImgUrl,
+    verified: true,
+    at: new Date().toISOString(),
+  };
+  list.unshift(newRev);
+  all[pid] = list;
+  saveReviews(all);
+  res.status(201).json({ ok: true, review: newRev });
 });
 app.delete('/api/reviews/:pid/:id', adminAuth, (req, res) => {
-  const all = getReviews(); all[req.params.pid] = (all[req.params.pid] || []).filter((r) => r.id !== req.params.id); saveReviews(all); res.json({ ok: true });
+  const all = getReviews();
+  all[req.params.pid] = (all[req.params.pid] || []).filter((r) => r.id !== req.params.id);
+  saveReviews(all);
+  res.json({ ok: true });
 });
 
 // ---- admin category management ----

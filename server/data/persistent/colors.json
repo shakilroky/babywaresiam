@@ -1,0 +1,122 @@
+[
+  {
+    "id": "jet-black",
+    "name": "Jet Black",
+    "hex": "#111111"
+  },
+  {
+    "id": "pure-white",
+    "name": "Pure White",
+    "hex": "#FFFFFF"
+  },
+  {
+    "id": "pearl-white",
+    "name": "Pearl / Off-White",
+    "hex": "#F8F9FA"
+  },
+  {
+    "id": "charcoal-grey",
+    "name": "Charcoal Grey",
+    "hex": "#495057"
+  },
+  {
+    "id": "silver",
+    "name": "Silver / Metallic",
+    "hex": "#C0C0C0"
+  },
+  {
+    "id": "gold",
+    "name": "Luxury Gold",
+    "hex": "#D4AF37"
+  },
+  {
+    "id": "rose-gold",
+    "name": "Rose Gold",
+    "hex": "#B76E79"
+  },
+  {
+    "id": "gunmetal",
+    "name": "Gunmetal / Matte Grey",
+    "hex": "#2C3539"
+  },
+  {
+    "id": "navy-blue",
+    "name": "Navy Blue",
+    "hex": "#1A2B4C"
+  },
+  {
+    "id": "royal-blue",
+    "name": "Royal Blue",
+    "hex": "#2563EB"
+  },
+  {
+    "id": "sky-blue",
+    "name": "Sky Blue",
+    "hex": "#87CEEB"
+  },
+  {
+    "id": "deep-maroon",
+    "name": "Deep Maroon",
+    "hex": "#58111A"
+  },
+  {
+    "id": "burgundy",
+    "name": "Burgundy / Wine",
+    "hex": "#800020"
+  },
+  {
+    "id": "dusty-rose",
+    "name": "Dusty Rose",
+    "hex": "#DCAE96"
+  },
+  {
+    "id": "emerald-green",
+    "name": "Emerald Green",
+    "hex": "#1B4D3E"
+  },
+  {
+    "id": "olive-green",
+    "name": "Olive Green",
+    "hex": "#556B2F"
+  },
+  {
+    "id": "mint-green",
+    "name": "Mint Green",
+    "hex": "#98FF98"
+  },
+  {
+    "id": "mocha-brown",
+    "name": "Mocha Brown",
+    "hex": "#4A2E1B"
+  },
+  {
+    "id": "tan-camel",
+    "name": "Tan / Camel",
+    "hex": "#C19A6B"
+  },
+  {
+    "id": "desert-beige",
+    "name": "Desert Beige",
+    "hex": "#D9CBB7"
+  },
+  {
+    "id": "chocolate",
+    "name": "Dark Chocolate",
+    "hex": "#3D2314"
+  },
+  {
+    "id": "tortoise",
+    "name": "Tortoise Shell / Amber",
+    "hex": "#8B4513"
+  },
+  {
+    "id": "lavender",
+    "name": "Lavender",
+    "hex": "#E6E6FA"
+  },
+  {
+    "id": "coral",
+    "name": "Peach / Coral",
+    "hex": "#F88379"
+  }
+]
