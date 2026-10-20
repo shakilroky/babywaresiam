@@ -1,23 +1,27 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import './styles.css';
 
-// Type definitions
+// Product Interface
 interface Product {
   id: string;
   slug: string;
   name: string;
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   category: string;
   price: number;
   originalPrice: number;
   stock: number;
-  featured: boolean;
+  featured?: boolean;
   badge?: string;
+  fabric?: string;
+  care?: string;
+  rating?: number;
+  ratingCount?: number;
+  image?: string;
   images: string[];
   sizes: string[];
   colors: { name: string; hex: string }[];
-  desc: string;
+  desc?: string;
 }
 
 interface Category {
@@ -33,14 +37,33 @@ interface CartItem {
   qty: number;
 }
 
-export default function App() {
+export function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
 
-  // Cart & Modals
+  // Store Settings
+  const [storeSettings, setStoreSettings] = useState<any>({
+    storeName: 'Baby Wear',
+    hotline: '01633-617136',
+    whatsapp: '8801633617136',
+    freeShipThreshold: 2000,
+    deliveryInside: 70,
+    deliveryOutside: 130,
+  });
+
+  // Modals & Drawers
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [quickViewActiveImg, setQuickViewActiveImg] = useState<string>('');
+  const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [showTrackModal, setShowTrackModal] = useState(false);
+
+  // Cart & Checkout State
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
       const saved = localStorage.getItem('bw_cart');
@@ -49,16 +72,9 @@ export default function App() {
       return [];
     }
   });
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string>('');
-  const [selectedColor, setSelectedColor] = useState<string>('');
-
-  // Checkout modal
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [directCheckoutItem, setDirectCheckoutItem] = useState<CartItem | null>(null);
-  
-  // Checkout Form State
+
+  // Form Fields
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
   const [custAddress, setCustAddress] = useState('');
@@ -67,85 +83,107 @@ export default function App() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
   const [couponErr, setCouponErr] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState<any>(null);
+  const [orderSuccess, setOrderSuccess] = useState<any | null>(null);
 
-  // Tracking modal
-  const [showTrackModal, setShowTrackModal] = useState(false);
+  // Tracking
   const [trackQuery, setTrackQuery] = useState('');
-  const [trackResult, setTrackResult] = useState<any>(null);
   const [trackLoading, setTrackLoading] = useState(false);
+  const [trackResult, setTrackResult] = useState<any | null>(null);
 
   // Toast
   const [toast, setToast] = useState('');
-
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3500);
   };
 
-  // Sync cart to localStorage
+  // Sync Cart to LocalStorage
   useEffect(() => {
-    localStorage.setItem('bw_cart', JSON.stringify(cart));
+    try {
+      localStorage.setItem('bw_cart', JSON.stringify(cart));
+    } catch {}
   }, [cart]);
 
-  // Load products from API
+  // Fetch Catalog & Settings
   useEffect(() => {
-    fetch('/api/products')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.products && Array.isArray(data.products)) {
-          setProducts(data.products);
-          setCategories(data.categories || []);
-        } else if (Array.isArray(data)) {
-          setProducts(data);
+    const fetchStore = async () => {
+      try {
+        const [catRes, setRes] = await Promise.all([
+          fetch('/api/catalog').then((r) => r.json()),
+          fetch('/api/settings').then((r) => r.json()).catch(() => ({})),
+        ]);
+
+        if (catRes && catRes.products) {
+          setProducts(catRes.products);
+          setCategories(catRes.categories || []);
+
+          // Initialize default sizes
+          const initSizes: Record<string, string> = {};
+          catRes.products.forEach((p: Product) => {
+            if (p.sizes && p.sizes.length > 0) {
+              initSizes[p.id] = p.sizes[0];
+            }
+          });
+          setSelectedSizes(initSizes);
         }
+
+        if (setRes && setRes.storeName) {
+          setStoreSettings({
+            storeName: setRes.storeName || 'Baby Wear',
+            hotline: setRes.phone || '01633-617136',
+            whatsapp: setRes.whatsapp || '8801633617136',
+            freeShipThreshold: setRes.freeShipThreshold || 2000,
+            deliveryInside: setRes.deliveryInside || 70,
+            deliveryOutside: setRes.deliveryOutside || 130,
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load store data', e);
+      } finally {
         setLoading(false);
-      })
-      .catch((err) => {
-        console.warn('API error, using local fallback:', err);
-        setLoading(false);
-      });
+      }
+    };
+    fetchStore();
   }, []);
 
-  // Filter products
+  // Filtered Products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
       const matchCat = activeCategory === 'all' || p.category === activeCategory;
-      const matchSearch =
-        !searchQuery ||
+      const matchQuery =
+        !searchQuery.trim() ||
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.desc.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
+        (p.subtitle && p.subtitle.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (p.sizes && p.sizes.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase())));
+      return matchCat && matchQuery;
     });
   }, [products, activeCategory, searchQuery]);
 
-  // Cart operations
-  const addToCart = (product: Product, size?: string, color?: string, qty = 1) => {
-    const chosenSize = size || product.sizes[0] || 'Standard';
-    const chosenColor = color || (product.colors[0]?.name ?? 'Default');
+  // Cart Utilities
+  const addToCart = (product: Product, customSize?: string, customColor?: string) => {
+    const sizeToUse = customSize || selectedSizes[product.id] || product.sizes[0] || 'Standard';
+    const colorToUse = customColor || (product.colors && product.colors[0]?.name) || 'Standard';
 
     setCart((prev) => {
       const idx = prev.findIndex(
-        (item) => item.product.id === product.id && item.size === chosenSize && item.color === chosenColor
+        (i) => i.product.id === product.id && i.size === sizeToUse && i.color === colorToUse
       );
-      if (idx > -1) {
+      if (idx >= 0) {
         const next = [...prev];
-        next[idx].qty += qty;
+        next[idx].qty += 1;
         return next;
       }
-      return [...prev, { product, size: chosenSize, color: chosenColor, qty }];
+      return [...prev, { product, size: sizeToUse, color: colorToUse, qty: 1 }];
     });
-    showToast(`🛒 "${product.name}" কার্টে যোগ হয়েছে!`);
+    showToast(`🛍️ "${product.name}" কার্টে যোগ করা হয়েছে!`);
   };
 
   const updateCartQty = (idx: number, delta: number) => {
     setCart((prev) => {
       const next = [...prev];
-      const newQty = next[idx].qty + delta;
-      if (newQty <= 0) {
+      next[idx].qty += delta;
+      if (next[idx].qty <= 0) {
         next.splice(idx, 1);
-      } else {
-        next[idx].qty = newQty;
       }
       return next;
     });
@@ -154,12 +192,15 @@ export default function App() {
   const cartTotalQty = useMemo(() => cart.reduce((sum, i) => sum + i.qty, 0), [cart]);
   const cartSubtotal = useMemo(() => cart.reduce((sum, i) => sum + i.product.price * i.qty, 0), [cart]);
 
-  // Open Direct Buy Modal for single item
-  const openDirectBuy = (product: Product) => {
+  // 1-Click Instant Order
+  const openDirectBuy = (product: Product, customSize?: string, customColor?: string) => {
+    const sizeToUse = customSize || selectedSizes[product.id] || product.sizes[0] || 'Standard';
+    const colorToUse = customColor || (product.colors && product.colors[0]?.name) || 'Standard';
+
     const item: CartItem = {
       product,
-      size: product.sizes[0] || 'Standard',
-      color: product.colors[0]?.name || 'Default',
+      size: sizeToUse,
+      color: colorToUse,
       qty: 1,
     };
     setDirectCheckoutItem(item);
@@ -171,7 +212,14 @@ export default function App() {
   const checkoutItemsTotal = directCheckoutItem
     ? directCheckoutItem.product.price * directCheckoutItem.qty
     : cartSubtotal;
-  const deliveryFee = deliveryArea === 'inside' ? 70 : 130;
+
+  const isFreeDelivery = checkoutItemsTotal >= (storeSettings.freeShipThreshold || 2000);
+  const deliveryFee = isFreeDelivery
+    ? 0
+    : deliveryArea === 'inside'
+    ? storeSettings.deliveryInside || 70
+    : storeSettings.deliveryOutside || 130;
+
   const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
   const grandTotal = Math.max(0, checkoutItemsTotal + deliveryFee - discountAmount);
 
@@ -186,7 +234,7 @@ export default function App() {
       showToast('🎉 BABYFIRST কুপন কার্যকর হয়েছে! ১০% ছাড় পেয়েছেন।');
     } else if (code === 'CUTE100') {
       if (checkoutItemsTotal < 1000) {
-        setCouponErr('এই কুপনটির জন্য সর্বনিম্ন ১০০০ টাকার অর্ডার প্রয়োজন');
+        setCouponErr('এই কুপনটির জন্য সর্বনিম্ন ১,০০০ টাকার অর্ডার প্রয়োজন');
         return;
       }
       setAppliedCoupon({ code, discount: 100 });
@@ -205,11 +253,11 @@ export default function App() {
     }
     const cleanPh = custPhone.replace(/\D/g, '');
     if (cleanPh.length < 11) {
-      alert('অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নাম্বার দিন');
+      alert('অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নাম্বার দিন (যেমন: 017XXXXXXXX)');
       return;
     }
     if (!custAddress.trim()) {
-      alert('অনুগ্রহ করে আপনার পূর্ণাঙ্গ ঠিকানা ও জেলা লিখুন');
+      alert('অনুগ্রহ করে আপনার পূর্ণাঙ্গ ঠিকানা ও জেলা উল্লেখ করুন');
       return;
     }
 
@@ -229,7 +277,7 @@ export default function App() {
         size: i.size,
         color: i.color,
         subtotal: i.product.price * i.qty,
-        image: i.product.images[0],
+        image: i.product.images[0] || i.product.image,
       })),
       itemsTotal: checkoutItemsTotal,
       delivery: deliveryFee,
@@ -255,7 +303,7 @@ export default function App() {
         alert('অর্ডার সাবমিট করতে সমস্যা হয়েছে: ' + (res.error || 'Please try again'));
       }
     } catch (err: any) {
-      alert('নেটওয়ার্ক ত্রুটি: ' + (err.message || 'Error'));
+      alert('নেটওয়ার্ক সমস্যা: ' + (err.message || 'Error'));
     } finally {
       setSubmittingOrder(false);
     }
@@ -282,6 +330,10 @@ export default function App() {
     }
   };
 
+  const whatsappLink = `https://wa.me/${storeSettings.whatsapp}?text=${encodeURIComponent(
+    'আসসালামু আলাইকুম, Baby Wear থেকে কিছু পোশাক সম্পর্কে জানতে চাচ্ছি।'
+  )}`;
+
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Toast Notification */}
@@ -289,36 +341,52 @@ export default function App() {
         <div
           style={{
             position: 'fixed',
-            bottom: 90,
+            bottom: 95,
             left: '50%',
             transform: 'translateX(-50%)',
             background: 'rgba(15, 23, 42, 0.95)',
-            color: '#FFF',
-            padding: '12px 24px',
-            borderRadius: 99,
+            color: '#FFFFFF',
+            padding: '12px 26px',
+            borderRadius: 9999,
             fontSize: 14,
-            fontWeight: 600,
-            boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-            zIndex: 9999,
+            fontWeight: 700,
+            boxShadow: '0 12px 30px rgba(0,0,0,0.3)',
+            zIndex: 99999,
             display: 'flex',
             alignItems: 'center',
-            gap: 8,
+            gap: 10,
           }}
         >
           {toast}
         </div>
       )}
 
-      {/* Top Bar Announcement */}
+      {/* Top Announcement Bar */}
       <div className="bw-topbar">
-        👶 ১০০% অর্গানিক নরম সুতি ফেব্রিক · সারাদেশে ক্যাশ অন ডেলিভারি · ফ্রি ডেলিভারি ৳২০০০+ অর্ডারে · হটলাইন: <b>01700-000000</b>
+        <div className="bw-topbar-item">
+          👶 ১০০% অর্গানিক নরম সুতি ফেব্রিক · সংবেদনশীল ত্বকে শতভাগ নিরাপদ
+        </div>
+        <div className="bw-topbar-item" style={{ display: 'none' }}>
+          🚚 সারাদেশে দ্রুত হোম ডেলিভারি · ফ্রি ডেলিভারি ৳২,০০০+ অর্ডারে
+        </div>
+        <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
+          📞 হটলাইন: {storeSettings.hotline}
+        </a>
       </div>
 
-      {/* Header */}
+      {/* Main Header */}
       <header className="bw-header">
         <div className="bw-header-inner">
-          {/* Logo & Brand matching uploaded picture */}
-          <a href="/" className="bw-logo-container" onClick={(e) => { e.preventDefault(); setActiveCategory('all'); setSearchQuery(''); }}>
+          {/* Logo & Brand */}
+          <a
+            href="/"
+            className="bw-logo-container"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveCategory('all');
+              setSearchQuery('');
+            }}
+          >
             <div className="bw-logo-badge">
               <img src="/uploads/baby-wear-logo.png" alt="Baby Wear Logo" />
             </div>
@@ -327,28 +395,43 @@ export default function App() {
                 <span className="bw-brand-baby">Baby</span>
                 <span className="bw-brand-wear">Wear</span>
               </div>
-              <span className="bw-brand-tagline">PREMIUM BABY CLOTHING</span>
+              <span className="bw-brand-tagline">PREMIUM BABY BOUTIQUE</span>
             </div>
           </a>
 
-          {/* Search bar */}
+          {/* Search Bar */}
           <div className="bw-search-wrapper">
             <span className="bw-search-icon">🔍</span>
             <input
               type="text"
               className="bw-search-input"
-              placeholder="বেবি রম্পার, ফ্রক, নিউবর্ন সেট বা সাইজ খুঁজুন..."
+              placeholder="বেবি রম্পার, ফ্রক, স্যুট বা সাইজ খুঁজুন (e.g. 0-3M)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {searchQuery && (
+              <button className="bw-search-clear" onClick={() => setSearchQuery('')}>
+                ✕
+              </button>
+            )}
           </div>
 
-          {/* Actions: Track & Cart */}
+          {/* Action Pills */}
           <div className="bw-actions">
+            <a href={`tel:${storeSettings.hotline}`} className="bw-action-pill">
+              📞 {storeSettings.hotline}
+            </a>
+
+            <a href={whatsappLink} target="_blank" rel="noreferrer" className="bw-action-pill bw-action-wa">
+              💬 WhatsApp
+            </a>
+
             <button
-              className="bw-btn bw-btn-outline"
-              style={{ padding: '8px 16px', fontSize: 13 }}
-              onClick={() => setShowTrackModal(true)}
+              className="bw-action-pill"
+              onClick={() => {
+                setShowTrackModal(true);
+                setTrackResult(null);
+              }}
             >
               📦 অর্ডার ট্র্যাক
             </button>
@@ -361,21 +444,22 @@ export default function App() {
         </div>
       </header>
 
-      {/* Hero Banner Section */}
+      {/* Hero Showcase Section */}
       <section className="bw-hero">
         <div className="bw-hero-card">
           <div>
             <div className="bw-hero-pill">
-              🧸 আপনার সোনামণির প্রথম পছন্দ
+              🧸 আপনার সোনামণির কোমল ত্বকের জন্য সেরা পছন্দ
             </div>
             <h1 className="bw-hero-title">
               সবচেয়ে নরম ও আরামদায়ক <br />
-              <span>বেবি ওয়্যার কালেকশন</span>
+              <span>বেবি পোশাকের রাজকীয় কালেকশন</span>
             </h1>
             <p className="bw-hero-desc">
-              ১০০% পিওর ব্রিদেবল সুতি কাপড়ে তৈরি। বাচ্চার কোমল সংবেদনশীল ত্বকে দিবে মা'য়ের হাতের মতো স্নিগ্ধ আরাম ও স্বস্তি।
+              ১০০% পিওর ব্রিদেবল কম্বড সুতি কাপড়ে তৈরি। বাচ্চার কোমল সংবেদনশীল ত্বকে দেবে চুলকানি ও অ্যালার্জি মুক্ত পরম স্বস্তি।
             </p>
-            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+
+            <div className="bw-hero-cta-group">
               <a
                 href="#catalog"
                 className="bw-btn bw-btn-pink"
@@ -384,8 +468,9 @@ export default function App() {
                   document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
                 }}
               >
-                👶 কালেকশন দেখুন
+                👶 সম্পূর্ণ কালেকশন দেখুন
               </a>
+
               <button
                 className="bw-btn bw-btn-blue"
                 onClick={() => {
@@ -395,87 +480,113 @@ export default function App() {
               >
                 🎁 নিউবর্ন গিফট সেট
               </button>
+
+              <button
+                className="bw-btn bw-btn-outline"
+                style={{ fontSize: 13, padding: '10px 18px' }}
+                onClick={() => setIsSizeGuideOpen(true)}
+              >
+                📏 সাইজ গাইড চার্ট
+              </button>
             </div>
           </div>
 
           <div className="bw-hero-image-box">
             <img
-              src="https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80"
-              alt="Baby Wear Collection"
+              src="https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=900&q=85"
+              alt="Baby Wear Luxury Collection"
               className="bw-hero-img"
             />
             <div className="bw-hero-floating-badge">
               <span style={{ fontSize: 24 }}>⭐</span>
               <div>
                 <b style={{ fontSize: 13, color: '#0F172A', display: 'block' }}>৪.৯/৫ স্টার রেটিং</b>
-                <span style={{ fontSize: 11, color: '#64748B' }}>৫,০০০+ হ্যাপি প্যারেন্টস</span>
+                <span style={{ fontSize: 11.5, color: '#64748B' }}>১২,৫০০+ সন্তুষ্ট মা-বাবা সারাদেশে</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Bar */}
+      {/* Trust & Features Bar */}
       <section className="bw-features-bar">
         <div className="bw-feature-item">
           <div className="bw-feature-icon">🌿</div>
           <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>১০০% অর্গানিক সুতি</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>বাচ্চার কোমল ত্বকে চুলকানি বা র‍্যাশ মুক্ত</span>
+            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>১০০% অর্গানিক কম্বড সুতি</b>
+            <span style={{ fontSize: 12, color: '#64748B' }}>নিকেল-ফ্রি স্ন্যাপ বাটন, ত্বক থাকবে র‍্যাশমুক্ত</span>
           </div>
         </div>
+
         <div className="bw-feature-item bw-feature-pink">
           <div className="bw-feature-icon">🚚</div>
           <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>সারাদেশে ক্যাশ অন ডেলিভারি</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>পণ্য হাতে পেয়ে চেক করে মূল্য পরিশোধ</span>
+            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>ক্যাশ অন ডেলিভারি</b>
+            <span style={{ fontSize: 12, color: '#64748B' }}>পণ্য হাতে পেয়ে চেক করে মূল্য পরিশোধের সুবিধা</span>
           </div>
         </div>
+
         <div className="bw-feature-item">
           <div className="bw-feature-icon">🔄</div>
           <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>সহজ সাইজ এক্সচেঞ্জ</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>সাইজ ছোট বা বড় হলে দ্রুত পরিবর্তন সুবিধা</span>
+            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>৭ দিনে সহজ সাইজ এক্সচেঞ্জ</b>
+            <span style={{ fontSize: 12, color: '#64748B' }}>সাইজ ছোট বা বড় হলে দ্রুত পরিবর্তন গ্যারান্টি</span>
           </div>
         </div>
+
         <div className="bw-feature-item bw-feature-pink">
           <div className="bw-feature-icon">💬</div>
           <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>২৪/৭ কাস্টমার সাপোর্ট</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ</span>
+            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>প্যারেন্টস হেল্পলাইন</b>
+            <span style={{ fontSize: 12, color: '#64748B' }}>হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ সেবা</span>
           </div>
         </div>
       </section>
 
-      {/* Catalog & Filter Section */}
+      {/* Category Stories Navigation */}
+      <section className="bw-category-stories">
+        <div className="bw-category-scroll">
+          <div
+            className={`bw-story-card ${activeCategory === 'all' ? 'active' : ''}`}
+            onClick={() => setActiveCategory('all')}
+          >
+            <div className="bw-story-avatar">🌟</div>
+            <span className="bw-story-title">সব কালেকশন</span>
+          </div>
+
+          {categories.map((c) => {
+            const iconMap: Record<string, string> = {
+              newborn: '🍼',
+              boy: '👦',
+              girl: '👧',
+              rompers: '🧸',
+              'party-wear': '👑',
+              accessories: '👟',
+            };
+            return (
+              <div
+                key={c.id}
+                className={`bw-story-card ${activeCategory === c.id ? 'active' : ''}`}
+                onClick={() => setActiveCategory(c.id)}
+              >
+                <div className="bw-story-avatar">{iconMap[c.slug] || '👶'}</div>
+                <span className="bw-story-title">{c.name.split('(')[0].trim()}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Catalog Title */}
       <section id="catalog" className="bw-cat-section">
         <div className="bw-section-header">
           <h2 className="bw-section-title">
-            <span style={{ color: '#0284C7' }}>আমাদের স্পেশাল</span>
-            <span style={{ color: '#EC4899' }}>বেবি কালেকশন</span>
+            <span style={{ color: '#0284C7' }}>আমাদের স্পেশাল </span>
+            <span style={{ color: '#EC4899' }}>বেবি ওয়্যার কালেকশন</span>
           </h2>
           <p className="bw-section-subtitle">
-            বয়স ও ক্যাটাগরি অনুযায়ী আপনার পছন্দের পোশাকটি বেছে নিন
+            বয়স, সাইজ ও ফেব্রিক অনুযায়ী আপনার ছোট্ট সোনামণির জন্য সেরা পোশাকটি বেছে নিন
           </p>
-        </div>
-
-        {/* Category Tabs */}
-        <div className="bw-cat-tabs">
-          <button
-            className={`bw-cat-tab ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
-          >
-            🌟 সব কালেকশন
-          </button>
-          {categories.map((c) => (
-            <button
-              key={c.id}
-              className={`bw-cat-tab ${activeCategory === c.id ? 'active' : ''}`}
-              onClick={() => setActiveCategory(c.id)}
-            >
-              {c.name}
-            </button>
-          ))}
         </div>
       </section>
 
@@ -487,111 +598,171 @@ export default function App() {
           </div>
         ) : filteredProducts.length === 0 ? (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0', fontSize: 16, color: '#64748B' }}>
-            কোনো পণ্য পাওয়া যায়নি। অন্য কিছু খুঁজে দেখুন।
+            কোনো পণ্য পাওয়া যায়নি। অন্য ক্যাটাগরি বেছে নিন।
           </div>
         ) : (
-          filteredProducts.map((p) => (
-            <div key={p.id} className="bw-card">
-              <div className="bw-card-media" onClick={() => setQuickViewProduct(p)}>
-                {p.badge && <span className="bw-card-badge">{p.badge}</span>}
-                <img src={p.images[0]} alt={p.name} className="bw-card-img" loading="lazy" />
-              </div>
+          filteredProducts.map((p) => {
+            const curSize = selectedSizes[p.id] || (p.sizes && p.sizes[0]) || 'Standard';
+            const discountPct = p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0;
+            const savings = p.originalPrice > p.price ? p.originalPrice - p.price : 0;
 
-              <div className="bw-card-body">
-                <h3 className="bw-card-title" onClick={() => setQuickViewProduct(p)}>
-                  {p.name}
-                </h3>
-                <p className="bw-card-subtitle">{p.subtitle}</p>
+            return (
+              <div key={p.id} className="bw-card">
+                {/* Media */}
+                <div
+                  className="bw-card-media"
+                  onClick={() => {
+                    setQuickViewProduct(p);
+                    setQuickViewActiveImg(p.images[0] || p.image || '');
+                  }}
+                >
+                  {p.badge && <span className="bw-card-badge">{p.badge}</span>}
+                  {discountPct > 0 && <span className="bw-card-discount">-{discountPct}% OFF</span>}
 
-                {/* Available Sizes */}
-                {p.sizes && p.sizes.length > 0 && (
-                  <div className="bw-sizes-row">
-                    {p.sizes.map((s) => (
-                      <span key={s} className="bw-size-pill">
-                        {s}
-                      </span>
-                    ))}
+                  <img
+                    src={p.images[0] || p.image}
+                    alt={p.name}
+                    className="bw-card-img"
+                    loading="lazy"
+                  />
+                </div>
+
+                {/* Body */}
+                <div className="bw-card-body">
+                  {p.fabric && <span className="bw-card-fabric-tag">🌿 {p.fabric.split('(')[0]}</span>}
+
+                  <h3
+                    className="bw-card-title"
+                    title={p.name}
+                    onClick={() => {
+                      setQuickViewProduct(p);
+                      setQuickViewActiveImg(p.images[0] || p.image || '');
+                    }}
+                  >
+                    {p.name}
+                  </h3>
+
+                  {/* Rating & Reviews */}
+                  <div className="bw-card-meta-row">
+                    <span className="bw-card-stars">⭐ {p.rating || 4.9}</span>
+                    <span>({p.ratingCount || 50}+ রিভিউ)</span>
                   </div>
-                )}
 
-                {/* Pricing */}
-                <div className="bw-price-row">
-                  <span className="bw-price-now">৳{p.price}</span>
-                  {p.originalPrice > p.price && (
-                    <span className="bw-price-old">৳{p.originalPrice}</span>
+                  {/* Size Selector Chips */}
+                  {p.sizes && p.sizes.length > 0 && (
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>সাইজ বেছে নিন:</span>
+                        <span
+                          style={{ fontSize: 11, color: '#0284C7', cursor: 'pointer', fontWeight: 600 }}
+                          onClick={() => setIsSizeGuideOpen(true)}
+                        >
+                          📏 সাইজ গাইড
+                        </span>
+                      </div>
+                      <div className="bw-card-sizes">
+                        {p.sizes.map((s) => (
+                          <span
+                            key={s}
+                            className={`bw-size-chip ${curSize === s ? 'selected' : ''}`}
+                            onClick={() => setSelectedSizes((prev) => ({ ...prev, [p.id]: s }))}
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
 
-                {/* Action Buttons */}
-                <div className="bw-card-actions">
-                  <button className="bw-btn-order-now" onClick={() => openDirectBuy(p)}>
-                    ⚡ সরাসরি অর্ডার
-                  </button>
-                  <button className="bw-btn-add-cart" onClick={() => addToCart(p)}>
-                    🛒 কার্টে যোগ
-                  </button>
+                  {/* Price */}
+                  <div className="bw-price-row">
+                    <span className="bw-price-now">৳{p.price}</span>
+                    {p.originalPrice > p.price && (
+                      <span className="bw-price-old">৳{p.originalPrice}</span>
+                    )}
+                    {savings > 0 && (
+                      <span className="bw-price-save">বাঁচবে ৳{savings}</span>
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="bw-card-actions">
+                    <button
+                      className="bw-btn-order-now"
+                      onClick={() => openDirectBuy(p, curSize)}
+                    >
+                      ⚡ সরাসরি অর্ডার
+                    </button>
+
+                    <button
+                      className="bw-btn-add-cart"
+                      onClick={() => addToCart(p, curSize)}
+                    >
+                      🛒 কার্ট
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </section>
 
-      {/* Happy Parents Reviews */}
-      <section style={{ maxWidth: 1240, margin: '20px auto 60px', padding: '0 20px' }}>
+      {/* Verified Parent Reviews Section */}
+      <section style={{ maxWidth: 1280, margin: '20px auto 60px', padding: '0 24px' }}>
         <div className="bw-section-header">
           <h2 className="bw-section-title">
-            <span style={{ color: '#EC4899' }}>হ্যাপি প্যারেন্টস</span>
-            <span style={{ color: '#0284C7' }}>ফিডব্যাক ও রিভিউ</span>
+            <span style={{ color: '#EC4899' }}>হ্যাপি প্যারেন্টস </span>
+            <span style={{ color: '#0284C7' }}>ফিডব্যাক ও অভিজ্ঞতা</span>
           </h2>
           <p className="bw-section-subtitle">আমাদের পোশাক পরে সোনামণিদের মা-বাবারা যা বলছেন</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-          <div className="bw-card" style={{ padding: 22 }}>
-            <div style={{ color: '#FBBF24', fontSize: 18, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
-            <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.6, marginBottom: 14 }}>
-              "কাপড়টা আসলেই অনেক সফট! বাচ্চার কোনো চুলকানি বা অস্বস্তি হয়নি। রঙটাও ছবির মতোই সুন্দর। ধন্যবাদ Baby Wear কে।"
+          <div className="bw-card" style={{ padding: 24 }}>
+            <div style={{ color: '#F59E0B', fontSize: 17, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
+            <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16 }}>
+              "কাপড়টা আসলেই অনেক বেশি সফট! আমার ৪ মাসের ছেলের জন্য টেডি রম্পারটা নিয়েছিলাম। বাচ্চার ত্বকে কোনো চুলকানি বা অস্বস্তি হয়নি। ওয়াশের পরেও কালার নষ্ট হয়নি।"
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#0369A1' }}>
-                রা
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#BAE6FD', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#0369A1' }}>
+                ফা
               </div>
               <div>
-                <b style={{ fontSize: 13, color: '#0F172A', display: 'block' }}>রাবেয়া সুলতানা</b>
-                <span style={{ fontSize: 11, color: '#64748B' }}>ধানমন্ডি, ঢাকা (Verified Buyer)</span>
+                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>ফারজানা ইয়াসমিন</b>
+                <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>✓ ভেরিফাইড বায়ার · ধানমন্ডি, ঢাকা</span>
               </div>
             </div>
           </div>
 
-          <div className="bw-card" style={{ padding: 22 }}>
-            <div style={{ color: '#FBBF24', fontSize: 18, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
-            <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.6, marginBottom: 14 }}>
-              "মেয়ের ১ম জন্মদিনের জন্য প্রিন্সেস ফ্রকটি নিয়েছিলাম। সবাই অনেক প্রশংসা করেছে। ডেলিভারিও মাত্র ২ দিনে পেয়েছি।"
+          <div className="bw-card" style={{ padding: 24 }}>
+            <div style={{ color: '#F59E0B', fontSize: 17, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
+            <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16 }}>
+              "মেয়ের ১ম জন্মদিনের জন্য প্রিন্সেস ফ্রকটি নিয়েছিলাম। মাশাআল্লাহ হুবহু ছবির মতোই সুন্দর! ইনার কটন লাইনিং থাকায় পুরো অনুষ্ঠান বাবু হাসিমুখে পার করেছে।"
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#FBCFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#BE185D' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#FBCFE8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#BE185D' }}>
                 না
               </div>
               <div>
-                <b style={{ fontSize: 13, color: '#0F172A', display: 'block' }}>নাফিসা আনজুম</b>
-                <span style={{ fontSize: 11, color: '#64748B' }}>চট্টগ্রাম (Verified Buyer)</span>
+                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>নাফিসা তাবাসসুম</b>
+                <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>✓ ভেরিফাইড বায়ার · পাঁচলাইশ, চট্টগ্রাম</span>
               </div>
             </div>
           </div>
 
-          <div className="bw-card" style={{ padding: 22 }}>
-            <div style={{ color: '#FBBF24', fontSize: 18, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
-            <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.6, marginBottom: 14 }}>
-              "নিউবর্ন গিফট বক্সটি আমার বোনের বাচ্চার জন্য অর্ডার করেছিলাম। প্যাকেজিং এবং কাপড়ের কোয়ালিটি সত্যিই প্রিমিয়াম।"
+          <div className="bw-card" style={{ padding: 24 }}>
+            <div style={{ color: '#F59E0B', fontSize: 17, marginBottom: 8 }}>⭐⭐⭐⭐⭐</div>
+            <p style={{ fontSize: 13.5, color: '#334155', lineHeight: 1.65, marginBottom: 16 }}>
+              "নতুন অতিথির জন্য ৫-পিস নিউবর্ন গিফট বক্সটি নিয়েছিলাম। উপহারের বক্স প্যাকেজিং অনেক আভিজাত্যপূর্ণ এবং ডেলিভারিও মাত্র ২ দিনে পেয়েছি।"
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#A7F3D0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#047857' }}>
-                সা
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#A7F3D0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#047857' }}>
+                তা
               </div>
               <div>
-                <b style={{ fontSize: 13, color: '#0F172A', display: 'block' }}>সাব্বির আহমেদ</b>
-                <span style={{ fontSize: 11, color: '#64748B' }}>সিলেট (Verified Buyer)</span>
+                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block' }}>তানজিনা চৌধুরী</b>
+                <span style={{ fontSize: 11.5, color: '#16A34A', fontWeight: 600 }}>✓ ভেরিফাইড বায়ার · মিরপুর, ঢাকা</span>
               </div>
             </div>
           </div>
@@ -601,41 +772,283 @@ export default function App() {
       {/* Floating WhatsApp Button */}
       <div
         className="bw-floating-wa"
-        onClick={() => {
-          window.open(
-            `https://wa.me/8801700000000?text=${encodeURIComponent('আসসালামু আলাইকুম, Baby Wear থেকে পণ্য সম্পর্কে জানতে চাচ্ছি।')}`,
-            '_blank'
-          );
-        }}
+        onClick={() => window.open(whatsappLink, '_blank')}
         title="Chat on WhatsApp"
       >
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="currentColor">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
           <path d="M12.031 2C6.494 2 2 6.494 2 12.031c0 1.956.564 3.782 1.54 5.336L2 22l4.786-1.503a9.98 9.98 0 0 0 5.245 1.488h.005c5.536 0 10.03-4.494 10.03-10.031C22.066 6.494 17.568 2 12.031 2zm5.834 14.195c-.244.686-1.22 1.258-1.745 1.336-.505.075-1.164.107-1.879-.122-1.928-.616-3.153-2.585-3.249-2.713-.095-.128-.781-1.042-.781-1.987 0-.946.495-1.411.671-1.603.176-.192.385-.24.514-.24.129 0 .258.002.371.008.119.006.278-.045.435.333.162.388.552 1.345.601 1.442.049.097.081.21.016.338-.065.129-.097.21-.193.322-.097.113-.203.253-.29.339-.097.097-.198.203-.085.397.113.194.502.828 1.077 1.341.741.661 1.365.866 1.559.963.194.097.307.081.42-.049.113-.129.484-.564.613-.758.129-.194.258-.161.435-.097.177.065 1.129.532 1.323.629.194.097.322.145.371.226.048.08.048.468-.196 1.154z" />
         </svg>
       </div>
 
+      {/* Sticky Mobile Bar */}
+      <div className="bw-mobile-bar">
+        <a
+          href={`tel:${storeSettings.hotline}`}
+          className="bw-btn bw-btn-outline"
+          style={{ flex: 1, padding: '10px 8px', fontSize: 13 }}
+        >
+          📞 কল দিন
+        </a>
+
+        <a
+          href={whatsappLink}
+          target="_blank"
+          rel="noreferrer"
+          className="bw-btn bw-btn-outline"
+          style={{ flex: 1, padding: '10px 8px', fontSize: 13, color: '#16A34A' }}
+        >
+          💬 WhatsApp
+        </a>
+
+        <button
+          className="bw-btn bw-btn-pink"
+          style={{ flex: 1.3, padding: '10px 10px', fontSize: 13 }}
+          onClick={() => {
+            if (cart.length > 0) {
+              setDirectCheckoutItem(null);
+              setIsCheckoutOpen(true);
+            } else {
+              document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
+        >
+          ⚡ অর্ডার করুন {cartTotalQty > 0 ? `(${cartTotalQty})` : ''}
+        </button>
+      </div>
+
+      {/* Quick View Product Modal */}
+      {quickViewProduct && (
+        <div className="bw-modal-backdrop" onClick={() => setQuickViewProduct(null)}>
+          <div
+            className="bw-modal-card"
+            style={{ maxWidth: 650 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="bw-modal-close" onClick={() => setQuickViewProduct(null)}>
+              ✕
+            </button>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
+              <div>
+                <img
+                  src={quickViewActiveImg || quickViewProduct.images[0] || quickViewProduct.image}
+                  alt={quickViewProduct.name}
+                  style={{ width: '100%', height: 280, objectFit: 'cover', borderRadius: 16 }}
+                />
+                {quickViewProduct.images && quickViewProduct.images.length > 1 && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    {quickViewProduct.images.map((img, idx) => (
+                      <img
+                        key={idx}
+                        src={img}
+                        alt="thumb"
+                        style={{
+                          width: 52,
+                          height: 52,
+                          borderRadius: 8,
+                          objectFit: 'cover',
+                          cursor: 'pointer',
+                          border: quickViewActiveImg === img ? '2px solid #0284C7' : '1px solid #E2E8F0',
+                        }}
+                        onClick={() => setQuickViewActiveImg(img)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <span className="bw-card-fabric-tag">🌿 {quickViewProduct.fabric || '১০০% প্রিমিয়াম সুতি'}</span>
+                <h3 style={{ fontSize: 18, color: '#0F172A', fontWeight: 800, marginTop: 6, marginBottom: 8 }}>
+                  {quickViewProduct.name}
+                </h3>
+                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, marginBottom: 14 }}>
+                  {quickViewProduct.desc}
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
+                  <span style={{ fontSize: 24, fontWeight: 800, color: '#BE185D' }}>
+                    ৳{quickViewProduct.price}
+                  </span>
+                  {quickViewProduct.originalPrice > quickViewProduct.price && (
+                    <span style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'line-through' }}>
+                      ৳{quickViewProduct.originalPrice}
+                    </span>
+                  )}
+                </div>
+
+                {quickViewProduct.sizes && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <b style={{ fontSize: 12, color: '#0F172A' }}>সাইজ:</b>
+                      <span
+                        style={{ fontSize: 11, color: '#0284C7', cursor: 'pointer', fontWeight: 600 }}
+                        onClick={() => setIsSizeGuideOpen(true)}
+                      >
+                        📏 সাইজ গাইড চার্ট
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {quickViewProduct.sizes.map((s) => (
+                        <span
+                          key={s}
+                          className={`bw-size-chip ${selectedSizes[quickViewProduct.id] === s ? 'selected' : ''}`}
+                          onClick={() => setSelectedSizes((p) => ({ ...p, [quickViewProduct.id]: s }))}
+                        >
+                          {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                  <button
+                    className="bw-btn bw-btn-pink"
+                    style={{ flex: 1.2, padding: '12px' }}
+                    onClick={() => {
+                      const curS = selectedSizes[quickViewProduct.id] || quickViewProduct.sizes[0];
+                      setQuickViewProduct(null);
+                      openDirectBuy(quickViewProduct, curS);
+                    }}
+                  >
+                    ⚡ সরাসরি অর্ডার
+                  </button>
+
+                  <button
+                    className="bw-btn bw-btn-blue"
+                    style={{ flex: 1, padding: '12px' }}
+                    onClick={() => {
+                      const curS = selectedSizes[quickViewProduct.id] || quickViewProduct.sizes[0];
+                      addToCart(quickViewProduct, curS);
+                    }}
+                  >
+                    🛒 কার্টে যোগ
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Size Guide Modal */}
+      {isSizeGuideOpen && (
+        <div className="bw-modal-backdrop" onClick={() => setIsSizeGuideOpen(false)}>
+          <div className="bw-modal-card" style={{ maxWidth: 540 }} onClick={(e) => e.stopPropagation()}>
+            <button className="bw-modal-close" onClick={() => setIsSizeGuideOpen(false)}>
+              ✕
+            </button>
+
+            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 6 }}>
+              📏 বেবি ওয়্যার স্ট্যান্ডার্ড সাইজ গাইড
+            </h3>
+            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+              আপনার সোনামণির বয়স, উচ্চতা ও ওজন মিলিয়ে সঠিক সাইজ নির্বাচন করুন:
+            </p>
+
+            <table className="bw-size-table">
+              <thead>
+                <tr>
+                  <th>সাইজ কোড</th>
+                  <th>বয়স সীমা</th>
+                  <th>বাচ্চার উচ্চতা</th>
+                  <th>বাচ্চার ওজন</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><b>0-3M</b></td>
+                  <td>০ থেকে ৩ মাস</td>
+                  <td>৫০ - ৬০ সেমি</td>
+                  <td>৩.০ - ৫.৫ কেজি</td>
+                </tr>
+                <tr>
+                  <td><b>3-6M</b></td>
+                  <td>৩ থেকে ৬ মাস</td>
+                  <td>৬০ - ৬৮ সেমি</td>
+                  <td>৫.৫ - ৭.৫ কেজি</td>
+                </tr>
+                <tr>
+                  <td><b>6-12M</b></td>
+                  <td>৬ থেকে ১২ মাস</td>
+                  <td>৬৮ - ৭৬ সেমি</td>
+                  <td>৭.৫ - ৯.৫ কেজি</td>
+                </tr>
+                <tr>
+                  <td><b>12-18M</b></td>
+                  <td>১২ থেকে ১৮ মাস</td>
+                  <td>৭৬ - ৮৪ সেমি</td>
+                  <td>৯.৫ - ১১.৫ কেজি</td>
+                </tr>
+                <tr>
+                  <td><b>18-24M</b></td>
+                  <td>১৮ থেকে ২৪ মাস</td>
+                  <td>৮৪ - ৯০ সেমি</td>
+                  <td>১১.৫ - ১৩.০ কেজি</td>
+                </tr>
+                <tr>
+                  <td><b>2-3Y</b></td>
+                  <td>২ থেকে ৩ বছর</td>
+                  <td>৯০ - ৯৮ সেমি</td>
+                  <td>১৩.০ - ১৫.০ কেজি</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 12, fontSize: 12, color: '#0369A1' }}>
+              💡 <b>টিপ:</b> যদি বাবু স্বাস্থ্যবান হয় তবে ১ সাইজ বড় অর্ডার করার পরামর্শ দেওয়া হচ্ছে। সাইজ ছোট বা বড় হলে ৭ দিনের মধ্যে পরিবর্তন সুবিধা রয়েছে।
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cart Drawer Modal */}
       {isCartOpen && (
         <div className="bw-modal-backdrop" onClick={() => setIsCartOpen(false)}>
-          <div
-            className="bw-modal-card"
-            style={{ maxWidth: 460 }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="bw-modal-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
               <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F172A', margin: 0 }}>
-                🛒 আপনার শপিং কার্ট ({cartTotalQty})
+                🛒 আপনার শপিং ব্যাগ ({cartTotalQty})
               </h3>
-              <button className="bw-modal-close" onClick={() => setIsCartOpen(false)}>✕</button>
+              <button className="bw-modal-close" onClick={() => setIsCartOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            {/* Free Shipping Progress */}
+            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 12, marginBottom: 16 }}>
+              {cartSubtotal >= storeSettings.freeShipThreshold ? (
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A', textAlign: 'center' }}>
+                  🎉 অভিনন্দন! আপনি <b>ফ্রি ডেলিভারি</b> পেয়েছেন!
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 12.5, color: '#0369A1', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>ফ্রি ডেলিভারির জন্য আর প্রয়োজন:</span>
+                    <b>৳{storeSettings.freeShipThreshold - cartSubtotal}</b>
+                  </div>
+                  <div style={{ background: '#E2E8F0', height: 6, borderRadius: 99, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        background: 'linear-gradient(90deg, #0284C7, #EC4899)',
+                        height: '100%',
+                        width: `${Math.min(100, (cartSubtotal / storeSettings.freeShipThreshold) * 100)}%`,
+                        transition: 'width 0.3s',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {cart.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748B' }}>
-                <div style={{ fontSize: 48, marginBottom: 10 }}>🛍️</div>
-                <p style={{ fontSize: 15, fontWeight: 600 }}>আপনার কার্ট বর্তমানে খালি আছে!</p>
+                <div style={{ fontSize: 44, marginBottom: 10 }}>🛍️</div>
+                <p style={{ fontSize: 15, fontWeight: 600 }}>আপনার শপিং ব্যাগ খালি!</p>
                 <button
                   className="bw-btn bw-btn-pink"
-                  style={{ marginTop: 16 }}
+                  style={{ marginTop: 14 }}
                   onClick={() => setIsCartOpen(false)}
                 >
                   👶 কেনাকাটা শুরু করুন
@@ -643,7 +1056,7 @@ export default function App() {
               </div>
             ) : (
               <div>
-                <div style={{ maxHeight: '50vh', overflowY: 'auto', marginBottom: 20 }}>
+                <div style={{ maxHeight: '45vh', overflowY: 'auto', marginBottom: 18 }}>
                   {cart.map((item, idx) => (
                     <div
                       key={idx}
@@ -651,23 +1064,23 @@ export default function App() {
                         display: 'flex',
                         gap: 12,
                         padding: '12px 0',
-                        borderBottom: '1px dashed #E2E8F0',
+                        borderBottom: '1px solid #E2E8F0',
                         alignItems: 'center',
                       }}
                     >
                       <img
-                        src={item.product.images[0]}
+                        src={item.product.images[0] || item.product.image}
                         alt={item.product.name}
-                        style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover' }}
+                        style={{ width: 60, height: 60, borderRadius: 12, objectFit: 'cover' }}
                       />
                       <div style={{ flex: 1 }}>
-                        <b style={{ fontSize: 14, color: '#0F172A', display: 'block', lineHeight: 1.3 }}>
+                        <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block', lineHeight: 1.3 }}>
                           {item.product.name}
                         </b>
                         <span style={{ fontSize: 12, color: '#64748B' }}>
-                          সাইজ: {item.size} · কালার: {item.color}
+                          সাইজ: {item.size}
                         </span>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: '#EC4899', marginTop: 4 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#BE185D', marginTop: 3 }}>
                           ৳{item.product.price} × {item.qty} = ৳{item.product.price * item.qty}
                         </div>
                       </div>
@@ -691,10 +1104,10 @@ export default function App() {
                   ))}
                 </div>
 
-                <div style={{ borderTop: '2px solid #F1F5F9', paddingTop: 14, marginBottom: 18 }}>
+                <div style={{ borderTop: '2px solid #F1F5F9', paddingTop: 14, marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, color: '#0F172A' }}>
                     <span>সাবটোটাল:</span>
-                    <span style={{ color: '#EC4899' }}>৳{cartSubtotal}</span>
+                    <span style={{ color: '#BE185D' }}>৳{cartSubtotal}</span>
                   </div>
                   <span style={{ fontSize: 12, color: '#64748B' }}>* ডেলিভারি চার্জ চেকআউটে যুক্ত হবে</span>
                 </div>
@@ -708,7 +1121,7 @@ export default function App() {
                     setIsCheckoutOpen(true);
                   }}
                 >
-                  ⚡ ক্যাশ অন ডেলিভারিতে অর্ডার করুন
+                  ⚡ ক্যাশ অন ডেলিভারি চেকআউট
                 </button>
               </div>
             )}
@@ -716,141 +1129,60 @@ export default function App() {
         </div>
       )}
 
-      {/* Quick View Product Modal */}
-      {quickViewProduct && (
-        <div className="bw-modal-backdrop" onClick={() => setQuickViewProduct(null)}>
-          <div className="bw-modal-card" onClick={(e) => e.stopPropagation()}>
-            <button className="bw-modal-close" onClick={() => setQuickViewProduct(null)}>✕</button>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
-              <div>
-                <img
-                  src={quickViewProduct.images[0]}
-                  alt={quickViewProduct.name}
-                  style={{ width: '100%', height: 320, objectFit: 'cover', borderRadius: 18 }}
-                />
-              </div>
-
-              <div>
-                <span className="bw-hero-pill" style={{ fontSize: 11, padding: '4px 10px', marginBottom: 8 }}>
-                  {quickViewProduct.badge || '১০০% পিওর কটন'}
-                </span>
-                <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F172A', marginBottom: 8 }}>
-                  {quickViewProduct.name}
-                </h3>
-                <p style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>{quickViewProduct.desc}</p>
-
-                <div className="bw-price-row">
-                  <span className="bw-price-now">৳{quickViewProduct.price}</span>
-                  {quickViewProduct.originalPrice > quickViewProduct.price && (
-                    <span className="bw-price-old">৳{quickViewProduct.originalPrice}</span>
-                  )}
-                </div>
-
-                {/* Size Selector */}
-                {quickViewProduct.sizes && quickViewProduct.sizes.length > 0 && (
-                  <div style={{ marginBottom: 14 }}>
-                    <b style={{ fontSize: 13, display: 'block', marginBottom: 6 }}>সাইজ নির্বাচন করুন:</b>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {quickViewProduct.sizes.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className={`bw-size-pill ${selectedSize === s || (!selectedSize && s === quickViewProduct.sizes[0]) ? 'active' : ''}`}
-                          style={{ padding: '6px 12px', fontSize: 12 }}
-                          onClick={() => setSelectedSize(s)}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 20 }}>
-                  <button
-                    className="bw-btn bw-btn-pink"
-                    onClick={() => {
-                      const sz = selectedSize || quickViewProduct.sizes[0];
-                      setDirectCheckoutItem({
-                        product: quickViewProduct,
-                        size: sz,
-                        color: quickViewProduct.colors[0]?.name || 'Default',
-                        qty: 1,
-                      });
-                      setQuickViewProduct(null);
-                      setIsCheckoutOpen(true);
-                    }}
-                  >
-                    ⚡ সরাসরি অর্ডার
-                  </button>
-                  <button
-                    className="bw-btn bw-btn-blue"
-                    onClick={() => {
-                      addToCart(quickViewProduct, selectedSize);
-                      setQuickViewProduct(null);
-                    }}
-                  >
-                    🛒 কার্টে যোগ
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Express Cash on Delivery Checkout Modal */}
+      {/* 1-Click Fast Checkout Modal */}
       {isCheckoutOpen && (
         <div className="bw-modal-backdrop" onClick={() => setIsCheckoutOpen(false)}>
           <div className="bw-modal-card" onClick={(e) => e.stopPropagation()}>
-            <button className="bw-modal-close" onClick={() => setIsCheckoutOpen(false)}>✕</button>
+            <button className="bw-modal-close" onClick={() => setIsCheckoutOpen(false)}>
+              ✕
+            </button>
 
             {orderSuccess ? (
-              <div style={{ textAlign: 'center', padding: '30px 10px' }}>
-                <div style={{ fontSize: 54, marginBottom: 12 }}>🎉</div>
-                <h3 style={{ fontSize: 24, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 8 }}>
-                  ধন্যবাদ! আপনার অর্ডারটি গ্রহণ করা হয়েছে।
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
+                <h3 style={{ fontSize: 24, color: '#0F3A66', fontFamily: 'var(--font-display)', marginBottom: 8 }}>
+                  ধন্যবাদ! আপনার অর্ডারটি নিশ্চিত হয়েছে
                 </h3>
-                <p style={{ fontSize: 15, color: '#334155', maxWidth: 480, margin: '0 auto 16px' }}>
-                  আমাদের কাস্টমার কেয়ার থেকে আপনার সাথে দ্রুত যোগাযোগ করে পার্সেলটি পাঠিয়ে দেওয়া হবে।
+                <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.6, marginBottom: 20 }}>
+                  অর্ডার আইডি: <b style={{ color: '#0284C7' }}>#{orderSuccess.id}</b> <br />
+                  আমাদের প্রতিনিধি শীঘ্রই আপনার সাথে ফোনে যোগাযোগ করে ডেলিভারি নিশ্চিত করবেন।
                 </p>
 
-                <div style={{ background: '#F0F9FF', border: '2px dashed #93C5FD', borderRadius: 16, padding: 18, maxWidth: 360, margin: '0 auto 24px', textAlign: 'left' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: '#64748B' }}>অর্ডার আইডি:</span>
-                    <b style={{ color: '#0284C7' }}>#{orderSuccess.id}</b>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <span style={{ fontSize: 13, color: '#64748B' }}>মোট বিল:</span>
-                    <b style={{ color: '#EC4899' }}>৳{orderSuccess.total} (ক্যাশ অন ডেলিভারি)</b>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: 13, color: '#64748B' }}>মোবাইল:</span>
-                    <b>{orderSuccess.customer?.phone}</b>
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: 16, textAlign: 'left', marginBottom: 24 }}>
+                  <b style={{ fontSize: 14, color: '#166534', display: 'block', marginBottom: 6 }}>ডেলিভারি বিবরণী:</b>
+                  <div style={{ fontSize: 13, color: '#1F2937', lineHeight: 1.6 }}>
+                    <div>গ্রাহকের নাম: {orderSuccess.customer?.name}</div>
+                    <div>মোবাইল: {orderSuccess.customer?.phone}</div>
+                    <div>ঠিকানা: {orderSuccess.customer?.address}</div>
+                    <div>মোট বিল: <b>৳{orderSuccess.total}</b> (ক্যাশ অন ডেলিভারি)</div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <div style={{ display: 'flex', gap: 12 }}>
                   <button
-                    className="bw-btn bw-btn-pink"
+                    className="bw-btn bw-btn-blue"
+                    style={{ flex: 1 }}
                     onClick={() => {
                       setOrderSuccess(null);
                       setIsCheckoutOpen(false);
                     }}
                   >
-                    🛍️ আরও কেনাকাটা করুন
+                    নতুন কেনাকাটা করুন
                   </button>
+
                   <button
-                    className="bw-btn bw-btn-blue"
+                    className="bw-btn bw-btn-pink"
+                    style={{ flex: 1 }}
                     onClick={() => {
                       window.open(
-                        `https://wa.me/8801700000000?text=${encodeURIComponent(`Hello Baby Wear, I placed order #${orderSuccess.id}`)}`,
+                        `https://wa.me/${storeSettings.whatsapp}?text=${encodeURIComponent(
+                          `আসসালামু আলাইকুম, Baby Wear এ অর্ডার #${orderSuccess.id} করেছি। অনুগ্রহ করে দ্রুত পাঠিয়ে দিন।`
+                        )}`,
                         '_blank'
                       );
                     }}
                   >
-                    💬 হোয়াটসঅ্যাপে আপডেট
+                    💬 WhatsApp এ আপডেট
                   </button>
                 </div>
               </div>
@@ -860,15 +1192,15 @@ export default function App() {
                   🛍️ ক্যাশ অন ডেলিভারি অর্ডার ফরম
                 </h3>
                 <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
-                  অর্ডারটি নিশ্চিত করতে নিচের তথ্যগুলো সঠিকভাবে পূরণ করুন:
+                  পণ্য হাতে পেয়ে মূল্য পরিশোধ করতে নিচের তথ্যগুলো সঠিকভাবে পূরণ করুন:
                 </p>
 
                 <form onSubmit={handleSubmitOrder}>
-                  <div className="bw-checkout-box">
+                  <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: 14, padding: 16 }}>
                     <label className="bw-form-label">আপনার পূর্ণ নাম *</label>
                     <input
                       className="bw-input"
-                      placeholder="e.g. তানজিলা আহমেদ"
+                      placeholder="যেমন: তানজিলা আহমেদ"
                       required
                       value={custName}
                       onChange={(e) => setCustName(e.target.value)}
@@ -902,7 +1234,7 @@ export default function App() {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
                           <span>ঢাকা সিটির ভেতরে</span>
-                          <span style={{ color: '#0284C7' }}>৳৭০</span>
+                          <span style={{ color: '#0284C7' }}>{isFreeDelivery ? 'ফ্রি' : `৳${storeSettings.deliveryInside}`}</span>
                         </div>
                         <span style={{ fontSize: 11, color: '#64748B' }}>২৪-৪৮ ঘণ্টায় হোম ডেলিভারি</span>
                       </div>
@@ -913,9 +1245,9 @@ export default function App() {
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
                           <span>ঢাকা সিটির বাইরে</span>
-                          <span style={{ color: '#0284C7' }}>৳১৩০</span>
+                          <span style={{ color: '#0284C7' }}>{isFreeDelivery ? 'ফ্রি' : `৳${storeSettings.deliveryOutside}`}</span>
                         </div>
-                        <span style={{ fontSize: 11, color: '#64748B' }}>২-৪ দিনে হোম ডেলিভারি</span>
+                        <span style={{ fontSize: 11, color: '#64748B' }}>২-৩ দিনে হোম ডেলিভারি</span>
                       </div>
                     </div>
 
@@ -924,7 +1256,7 @@ export default function App() {
                       <input
                         className="bw-input"
                         style={{ marginBottom: 0 }}
-                        placeholder="ডিসকাউন্ট কুপন কোড (যেমন: BABYFIRST)"
+                        placeholder="কুপন কোড দিন (যেমন: BABYFIRST)"
                         value={couponCode}
                         onChange={(e) => setCouponCode(e.target.value)}
                       />
@@ -939,13 +1271,13 @@ export default function App() {
                     </div>
                     {couponErr && <div style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>{couponErr}</div>}
                     {appliedCoupon && (
-                      <div style={{ fontSize: 12, color: '#10B981', fontWeight: 600, marginBottom: 8 }}>
+                      <div style={{ fontSize: 12, color: '#16A34A', fontWeight: 700, marginBottom: 8 }}>
                         ✓ {appliedCoupon.code} প্রযোজ্য হয়েছে (৳{appliedCoupon.discount} ছাড়)
                       </div>
                     )}
                   </div>
 
-                  {/* Order Summary */}
+                  {/* Order Bill Summary */}
                   <div style={{ background: '#F0F9FF', border: '1.5px solid #BAE6FD', borderRadius: 14, padding: 16, marginTop: 16 }}>
                     <b style={{ fontSize: 14, color: '#0F3A66', display: 'block', marginBottom: 10 }}>অর্ডার সামারি:</b>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
@@ -958,16 +1290,16 @@ export default function App() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
                       <span>ডেলিভারি চার্জ:</span>
-                      <b>৳{deliveryFee}</b>
+                      <b>{isFreeDelivery ? 'ফ্রি (৳০)' : `৳${deliveryFee}`}</b>
                     </div>
                     {discountAmount > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#10B981', marginBottom: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#16A34A', marginBottom: 4 }}>
                         <span>কুপন ছাড়:</span>
                         <b>-৳{discountAmount}</b>
                       </div>
                     )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 700, color: '#EC4899', borderTop: '1px dashed #BAE6FD', paddingTop: 8, marginTop: 8 }}>
-                      <span>সর্বমোট বিল:</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 18, fontWeight: 800, color: '#BE185D', borderTop: '1px dashed #BAE6FD', paddingTop: 8, marginTop: 8 }}>
+                      <span>সর্বমোট পরিশোধযোগ্য বিল:</span>
                       <span>৳{grandTotal}</span>
                     </div>
                   </div>
@@ -978,7 +1310,7 @@ export default function App() {
                     className="bw-btn bw-btn-pink"
                     style={{ width: '100%', padding: '16px', fontSize: 17, marginTop: 16 }}
                   >
-                    {submittingOrder ? 'অর্ডার প্রসেস হচ্ছে…' : `✓ ৳${grandTotal} - অর্ডার কনফার্ম করুন`}
+                    {submittingOrder ? 'অর্ডার প্রসেস হচ্ছে…' : `✓ ৳${grandTotal} - ক্যাশ অন ডেলিভারিতে অর্ডার করুন`}
                   </button>
                 </form>
               </div>
@@ -987,17 +1319,19 @@ export default function App() {
         </div>
       )}
 
-      {/* Track Order Modal */}
+      {/* Live Order Tracker Modal */}
       {showTrackModal && (
         <div className="bw-modal-backdrop" onClick={() => setShowTrackModal(false)}>
-          <div className="bw-modal-card" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
-            <button className="bw-modal-close" onClick={() => setShowTrackModal(false)}>✕</button>
+          <div className="bw-modal-card" style={{ maxWidth: 500 }} onClick={(e) => e.stopPropagation()}>
+            <button className="bw-modal-close" onClick={() => setShowTrackModal(false)}>
+              ✕
+            </button>
 
             <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 6 }}>
-              📦 আপনার অর্ডার ট্র্যাক করুন
+              📦 আপনার অর্ডার লাইভ ট্র্যাক করুন
             </h3>
             <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
-              অর্ডার করার সময় ব্যবহৃত মোবাইল নাম্বার বা অর্ডার আইডি দিন:
+              অর্ডার করার সময় ব্যবহৃত ১১ ডিজিটের মোবাইল নাম্বার অথবা অর্ডার আইডি দিন:
             </p>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -1019,23 +1353,72 @@ export default function App() {
             </div>
 
             {trackResult && (
-              <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: 14, padding: 16 }}>
+              <div style={{ background: '#F8FAFC', border: '1.5px solid #E2E8F0', borderRadius: 14, padding: 18 }}>
                 {trackResult.notFound ? (
-                  <p style={{ fontSize: 13, color: '#EF4444', margin: 0 }}>
-                    কোনো অর্ডার পাওয়া যায়নি। সঠিক মোবাইল নাম্বার দিয়ে চেষ্টা করুন।
+                  <p style={{ fontSize: 13, color: '#EF4444', margin: 0, textAlign: 'center' }}>
+                    কোনো অর্ডার পাওয়া যায়নি। সঠিক মোবাইল নাম্বার বা আইডি দিয়ে পুনরায় চেষ্টা করুন।
                   </p>
                 ) : (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <b>অর্ডার #{trackResult.id}</b>
-                      <span className="bw-hero-pill" style={{ fontSize: 11, padding: '2px 8px', margin: 0 }}>
-                        {trackResult.status === 'delivered' ? 'ডেলিভার্ড' : trackResult.status === 'shipped' ? 'শিপড / কুরিয়ারে' : 'কনফার্মড'}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <b style={{ fontSize: 15, color: '#0F172A' }}>অর্ডার #{trackResult.id}</b>
+                      <span
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          padding: '3px 10px',
+                          borderRadius: 99,
+                          background: trackResult.status === 'delivered' ? '#DCFCE7' : '#E0F2FE',
+                          color: trackResult.status === 'delivered' ? '#166534' : '#0369A1',
+                        }}
+                      >
+                        {trackResult.status === 'delivered'
+                          ? 'ডেলিভার্ড'
+                          : trackResult.status === 'shipped'
+                          ? 'শিপড / কুরিয়ারে আছে'
+                          : 'কনফার্মড'}
                       </span>
                     </div>
-                    <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.6 }}>
-                      <div>গ্রাহক: {trackResult.customer?.name}</div>
+
+                    {/* Visual Stepper */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', margin: '20px 0 16px', position: 'relative' }}>
+                      {['অর্ডার গৃহীত', 'প্যাকিং সম্পন্ন', 'কুরিয়ারে হস্তান্তর', 'ডেলিভার্ড'].map((st, i) => {
+                        const isDone =
+                          (trackResult.status === 'delivered') ||
+                          (trackResult.status === 'shipped' && i <= 2) ||
+                          (trackResult.status === 'confirmed' && i <= 1) ||
+                          (i === 0);
+                        return (
+                          <div key={i} style={{ textAlign: 'center', flex: 1, position: 'relative', zIndex: 2 }}>
+                            <div
+                              style={{
+                                width: 26,
+                                height: 26,
+                                borderRadius: '50%',
+                                background: isDone ? '#0284C7' : '#E2E8F0',
+                                color: '#FFFFFF',
+                                fontSize: 12,
+                                fontWeight: 800,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                margin: '0 auto 6px',
+                              }}
+                            >
+                              {isDone ? '✓' : i + 1}
+                            </div>
+                            <span style={{ fontSize: 10.5, color: isDone ? '#0F172A' : '#94A3B8', fontWeight: isDone ? 700 : 500 }}>
+                              {st}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, borderTop: '1px solid #E2E8F0', paddingTop: 10 }}>
+                      <div>গ্রাহক: <b>{trackResult.customer?.name}</b></div>
                       <div>ঠিকানা: {trackResult.customer?.address}</div>
-                      <div>মোট বিল: ৳{trackResult.total} (ক্যাশ অন ডেলিভারি)</div>
+                      <div>মোট বিল: <b>৳{trackResult.total}</b> (ক্যাশ অন ডেলিভারি)</div>
                     </div>
                   </div>
                 )}
@@ -1049,47 +1432,114 @@ export default function App() {
       <footer className="bw-footer">
         <div className="bw-footer-inner">
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-              <img src="/uploads/baby-wear-logo.png" alt="Baby Wear" style={{ width: 44, height: 44, borderRadius: '50%' }} />
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+              <img
+                src="/uploads/baby-wear-logo.png"
+                alt="Baby Wear"
+                style={{ width: 48, height: 48, borderRadius: '50%', background: '#FFF' }}
+              />
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 800 }}>
                 <span style={{ color: '#38BDF8' }}>Baby </span>
                 <span style={{ color: '#EC4899' }}>Wear</span>
               </div>
             </div>
-            <p style={{ fontSize: 13, color: '#94A3B8', lineHeight: 1.6, maxWidth: 300 }}>
-              আপনার সোনামণির জন্য সবচেয়ে নিরাপদ, আরামদায়ক ও ট্রেন্ডি বেবি পোশাকের নির্ভরযোগ্য ঠিকানা।
+            <p style={{ fontSize: 13, color: '#94A3B8', lineHeight: 1.65, maxWidth: 320 }}>
+              আপনার সোনামণির জন্য সবচেয়ে নিরাপদ, আরামদায়ক ও ট্রেন্ডি বেবি পোশাকের নির্ভরযোগ্য ব্র্যান্ড। ১০০% অর্গানিক কম্বড কটন।
             </p>
           </div>
 
           <div>
             <h4 style={{ fontSize: 15, color: '#F8FAFC', marginBottom: 14 }}>কুইক লিংক</h4>
             <ul style={{ listStyle: 'none', fontSize: 13, color: '#94A3B8', lineHeight: 2 }}>
-              <li><a href="#catalog" style={{ color: 'inherit', textDecoration: 'none' }}>নিউবর্ন কালেকশন</a></li>
-              <li><a href="#catalog" style={{ color: 'inherit', textDecoration: 'none' }}>বেবি বয় ও গার্ল ড্রেস</a></li>
-              <li><a href="#catalog" style={{ color: 'inherit', textDecoration: 'none' }}>বেবি রম্পার ও স্লিপস্যুট</a></li>
-              <li><a href="#catalog" style={{ color: 'inherit', textDecoration: 'none' }}>গিফট বক্স ও এক্সেসরিজ</a></li>
+              <li>
+                <a
+                  href="#catalog"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                  onClick={() => setActiveCategory('cat_newborn')}
+                >
+                  নিউবর্ন গিফট সেট
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#catalog"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                  onClick={() => setActiveCategory('cat_rompers')}
+                >
+                  বেবি রম্পার ও স্লিপস্যুট
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#catalog"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                  onClick={() => setActiveCategory('cat_dresses')}
+                >
+                  পার্টি ফ্রক ও স্যুট
+                </a>
+              </li>
+              <li>
+                <a
+                  href="#catalog"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                  onClick={() => setActiveCategory('cat_accessories')}
+                >
+                  জুতো ও বেবি এক্সেসরিজ
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: 15, color: '#F8FAFC', marginBottom: 14 }}>গ্রাহক সুবিধা</h4>
+            <ul style={{ listStyle: 'none', fontSize: 13, color: '#94A3B8', lineHeight: 2 }}>
+              <li>
+                <span style={{ cursor: 'pointer' }} onClick={() => setIsSizeGuideOpen(true)}>
+                  📏 সাইজ গাইড চার্ট
+                </span>
+              </li>
+              <li>
+                <span style={{ cursor: 'pointer' }} onClick={() => setShowTrackModal(true)}>
+                  📦 অর্ডার লাইভ ট্র্যাকিং
+                </span>
+              </li>
+              <li>🔄 ৭ দিনের সাইজ এক্সচেঞ্জ</li>
+              <li>🚚 ক্যাশ অন ডেলিভারি পলিসি</li>
             </ul>
           </div>
 
           <div>
             <h4 style={{ fontSize: 15, color: '#F8FAFC', marginBottom: 14 }}>কাস্টমার সাপোর্ট</h4>
             <div style={{ fontSize: 13, color: '#94A3B8', lineHeight: 2 }}>
-              <div>📞 মোবাইল: 01700-000000</div>
-              <div>💬 হোয়াটসঅ্যাপ: 01700-000000</div>
-              <div>✉️ ইমেইল: support@babywear.com</div>
-              <div>🕒 সময়: সকাল ৯টা - রাত ১১টা</div>
+              <div>
+                📞 হটলাইন:{' '}
+                <a href={`tel:${storeSettings.hotline}`} style={{ color: '#38BDF8', textDecoration: 'none' }}>
+                  {storeSettings.hotline}
+                </a>
+              </div>
+              <div>
+                💬 হোয়াটসঅ্যাপ:{' '}
+                <a href={whatsappLink} target="_blank" rel="noreferrer" style={{ color: '#22C55E', textDecoration: 'none' }}>
+                  {storeSettings.hotline}
+                </a>
+              </div>
+              <div>✉️ ইমেইল: support@babywear.com.bd</div>
+              <div>🕒 কাস্টমার সার্ভিস: সকাল ৯টা - রাত ১১টা</div>
             </div>
           </div>
         </div>
 
         <div className="bw-footer-bottom">
-          <div>© {new Date().getFullYear()} Baby Wear. সর্বস্বত্ব সংরক্ষিত।</div>
+          <div>© {new Date().getFullYear()} Baby Wear Bangladesh. সর্বস্বত্ব সংরক্ষিত।</div>
           <div style={{ display: 'flex', gap: 16 }}>
             <span style={{ color: '#64748B' }}>🔒 নিরাপদ পেমেন্ট ও ১০০% ক্যাশ অন ডেলিভারি</span>
-            <a href="/admin" style={{ color: '#475569', textDecoration: 'none', fontSize: 12 }}>Admin Login</a>
+            <a href="/wp-admin" style={{ color: '#64748B', textDecoration: 'none', fontSize: 12 }}>
+              Admin Panel
+            </a>
           </div>
         </div>
       </footer>
     </div>
   );
 }
+export default App;

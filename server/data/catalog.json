@@ -20,10 +20,14 @@
       "stock": 35,
       "featured": true,
       "badge": "🔥 বেস্ট সেলার",
-      "image": "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80",
+      "fabric": "১০০% অর্গানিক কম্বড সুতি (Interlock 220 GSM)",
+      "care": "মেশিন ওয়াশযোগ্য, নিকেল-মুক্ত স্ন্যাপ বাটন",
+      "rating": 4.9,
+      "ratingCount": 68,
+      "image": "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["0-3M", "3-6M", "6-12M", "12-18M"],
       "colors": [
@@ -31,7 +35,7 @@
         { "name": "Candy Pink", "hex": "#F472B6" },
         { "name": "Cream Milk", "hex": "#FEF3C7" }
       ],
-      "desc": "বাচ্চার জন্য অত্যন্ত নরম ও আরামদায়ক থ্রি-ডি বেয়ার ইয়ার হুডেড রম্পার। ডায়াপার পরিবর্তনের সুবিধার্থে নিচে স্ন্যাপ বাটন দেওয়া আছে।"
+      "desc": "বাচ্চার জন্য অত্যন্ত নরম ও আরামদায়ক থ্রি-ডি বেয়ার ইয়ার হুডেড রম্পার। ডায়াপার পরিবর্তনের সুবিধার্থে নিচে নিকেল-ফ্রি স্ন্যাপ বাটন দেওয়া আছে, যাতে বাচ্চার সংবেদনশীল ত্বকে কোনো অস্বস্তি না হয়।"
     },
     {
       "id": "bw-102",
@@ -45,10 +49,14 @@
       "stock": 25,
       "featured": true,
       "badge": "🎀 পার্টি স্পেশাল",
-      "image": "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=800&q=80",
+      "fabric": "সফট অর্গানজা টিস্যু ও ১০০% কটন আরামদায়ক ইনার লাইনিং",
+      "care": "হালকা হ্যান্ড ওয়াশ, ড্রাইড ইন শেড",
+      "rating": 5.0,
+      "ratingCount": 42,
+      "image": "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["3-6M", "6-12M", "12-18M", "18-24M"],
       "colors": [
@@ -56,7 +64,7 @@
         { "name": "Peach Rose", "hex": "#FDA4AF" },
         { "name": "Pure White", "hex": "#FFFFFF" }
       ],
-      "desc": "সুন্দর সাটিন বো এবং ম্যাচিং হেডব্যান্ড সহ রাজকীয় ডিজাইনের বেবি গার্ল পার্টি ফ্রক। ভেতরের অংশে ১০০% কটন লাইনিং দেওয়া যাতে বাচ্চার গায়ে সফট ফিল হয়।"
+      "desc": "সুন্দর সাটিন বো এবং ম্যাচিং হেডব্যান্ড সহ রাজকীয় ডিজাইনের বেবি গার্ল পার্টি ফ্রক। ভেতরের অংশে ১০০% কটন লাইনিং দেওয়া যাতে বাচ্চার গায়ে সফট ও কোমল অনুভূতি থাকে।"
     },
     {
       "id": "bw-103",
@@ -70,17 +78,21 @@
       "stock": 20,
       "featured": true,
       "badge": "⭐ টপ রেটেড",
-      "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
+      "fabric": "ব্রিদেবল কটন শার্ট ও প্রিমিয়াম সফট ব্লেজার ফেব্রিক",
+      "care": "ড্রাই ক্লিন বা জেন্টল কোল্ড ওয়াশ",
+      "rating": 4.9,
+      "ratingCount": 54,
+      "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["6-12M", "12-18M", "18-24M", "2-3Y"],
       "colors": [
         { "name": "Classic Navy", "hex": "#1E3A8A" },
         { "name": "Sky Blue", "hex": "#38BDF8" }
       ],
-      "desc": "শার্ট, ওয়েস্টকোট, বো-টাই ও নরম আরামদায়ক প্যান্টের সম্পূর্ণ ৩-পিস সেট।"
+      "desc": "শার্ট, ওয়েস্টকোট, বো-টাই ও নরম আরামদায়ক ইলাস্টিক প্যান্টের সম্পূর্ণ ৩-পিস রাজকীয় স্যুট সেট। বাবু পরলে যেমন কিউট লাগবে তেমনি দীর্ঘক্ষণ আরামে থাকতে পারবে।"
     },
     {
       "id": "bw-104",
@@ -94,10 +106,14 @@
       "stock": 40,
       "featured": true,
       "badge": "🎁 পারফেক্ট গিফট",
-      "image": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
+      "fabric": "১০০% GOTS সার্টিফায়েড অর্গানিক সুতি",
+      "care": "অ্যান্টি-অ্যালার্জিক, ডায়াপার-ফ্রেন্ডলি",
+      "rating": 5.0,
+      "ratingCount": 79,
+      "image": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=900&q=85",
+        "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["0-3M", "3-6M"],
       "colors": [
@@ -105,7 +121,7 @@
         { "name": "Soft Pink", "hex": "#FBCFE8" },
         { "name": "Mint Green", "hex": "#A7F3D0" }
       ],
-      "desc": "ফুল হাতা জামা, প্যান্ট, বেবি ক্যাপ, স্ক্র্যাচ-প্রুফ মিটেন ও নরম বিব সহ ৫-পিসের প্রিমিয়াম সেট।"
+      "desc": "ফুল হাতা জামা, প্যান্ট, বেবি ক্যাপ, স্ক্র্যাচ-প্রুফ মিটেন ও নরম বিব সহ ৫-পিসের প্রিমিয়াম সেট। গিফট বক্স প্যাকেজিংসহ আসে, যা নতুন মা ও শিশুর জন্য সেরা উপহার।"
     },
     {
       "id": "bw-105",
@@ -119,15 +135,19 @@
       "stock": 30,
       "featured": false,
       "badge": "💤 আরামদায়ক ঘুম",
-      "image": "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=800&q=80",
+      "fabric": "১০০% সফট ব্রিদেবল ইন্টারলক সুতি",
+      "care": "মেশিন ওয়াশ কোল্ড, নো ব্লিচ",
+      "rating": 4.8,
+      "ratingCount": 38,
+      "image": "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1544126592-807ade215a0b?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["0-3M", "3-6M", "6-12M"],
       "colors": [
         { "name": "Pastel Mix", "hex": "#BAE6FD" }
       ],
-      "desc": "বাচ্চার রাতের শান্তির ঘুমের জন্য ৩টি প্রিমিয়াম স্লিপস্যুটের প্যাক।"
+      "desc": "বাচ্চার রাতের শান্তির ঘুমের জন্য ৩টি প্রিমিয়াম স্লিপস্যুটের প্যাক। জিপার গার্ড দেওয়া যাতে বাচ্চার চিবুকে বা গলায় কোনো আঘাত না লাগে।"
     },
     {
       "id": "bw-106",
@@ -141,15 +161,19 @@
       "stock": 30,
       "featured": false,
       "badge": "🦖 সামার স্পেশাল",
-      "image": "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80",
+      "fabric": "১০০% পিওর সুতি টি-শার্ট ও স্ট্রেচি সফট ডেনিম শর্টস",
+      "care": "সহজ ওয়াশ, ড্রায়ারে শুকানো যায়",
+      "rating": 4.9,
+      "ratingCount": 29,
+      "image": "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["6-12M", "12-18M", "18-24M"],
       "colors": [
         { "name": "Sky Blue", "hex": "#38BDF8" }
       ],
-      "desc": "গরমে বাচ্চার জন্য ১০০% পিওর সুতি টি-শার্ট ও স্ট্রেচি আরামদায়ক শর্টস সেট।"
+      "desc": "গরমে বাচ্চার জন্য ১০০% পিওর সুতি টি-শার্ট ও স্ট্রেচি আরামদায়ক শর্টস সেট। আকর্ষণীয় ডাইনো প্রিন্ট যা শিশুরা পছন্দ করবে।"
     },
     {
       "id": "bw-107",
@@ -163,16 +187,20 @@
       "stock": 45,
       "featured": true,
       "badge": "👟 সফট সোল",
-      "image": "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80",
+      "fabric": "ব্রিদেবল কটন ক্যানভাস ও ফ্লেক্সিবল নন-স্লিপ রাবার গ্রিপ",
+      "care": "স্পঞ্জ ওয়াশ",
+      "rating": 4.9,
+      "ratingCount": 51,
+      "image": "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1519238263530-99bdd11df2ea?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?auto=format&fit=crop&w=900&q=85"
       ],
       "sizes": ["0-6M", "6-12M", "12-18M"],
       "colors": [
         { "name": "Sky Blue Bear", "hex": "#60A5FA" },
         { "name": "Pink Bow", "hex": "#F472B6" }
       ],
-      "desc": "বাচ্চার কোমল পায়ের সুরক্ষায় ব্রিদেবল ফেব্রিক এবং নন-স্লিপ রাবার গ্রিপ সোল।"
+      "desc": "বাচ্চার কোমল পায়ের সঠিক বিকাশের জন্য ফ্লেক্সিবল ব্রিদেবল ফেব্রিক এবং খাঁজকাটা নন-স্লিপ রাবার গ্রিপ সোল, যা পিছলে যাওয়া রোধ করে।"
     },
     {
       "id": "bw-108",
@@ -186,15 +214,19 @@
       "stock": 50,
       "featured": false,
       "badge": "🍼 বেবি কেয়ার",
-      "image": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80",
+      "fabric": "ফ্রন্ট ১০০% অর্গানিক কটন ও ব্যাক ওয়াটারপ্রুফ ফ্লিস",
+      "care": "মেশিন ওয়াশ, কুইক ড্রাই",
+      "rating": 4.9,
+      "ratingCount": 63,
+      "image": "https://images.unsplash.com/photo-1574015974293-817f0ebebb74?auto=format&fit=crop&w=900&q=85",
       "images": [
-        "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80"
+        "https://images.unsplash.com/photo-1574015974293-817f0ebebb74?auto=format&fit=crop&w=900&q=85"
       ],
-      "sizes": ["Free Size"],
+      "sizes": ["Free Size (Adjustable Snaps)"],
       "colors": [
-        { "name": "Unisex Pastel Mix", "hex": "#FDE68A" }
+        { "name": "Pastel Cute Print", "hex": "#FDE68A" }
       ],
-      "desc": "খাবারের সময় বা দাঁত ওঠার সময় জামা ভিজে যাওয়া থেকে সুরক্ষা দিতে ডাবল-লেয়ার ওয়াটারপ্রুফ বিব সেট।"
+      "desc": "খাবারের সময় বা দাঁত ওঠার সময় জামা ভিজে যাওয়া ও বুকের ঠান্ডা লাগা রোধ করতে ডাবল-লেয়ার ওয়াটারপ্রুফ ব্যান্ডানা বিব সেট।"
     }
   ]
 }
