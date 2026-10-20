@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { BD_GEO } from './bd-geo';
 
 // Product Interface
 interface Product {
@@ -10,17 +11,20 @@ interface Product {
   category: string;
   price: number;
   originalPrice: number;
+  compareAt?: number;
   stock: number;
   featured?: boolean;
   badge?: string;
+  tag?: string;
   fabric?: string;
   care?: string;
   rating?: number;
   ratingCount?: number;
   image?: string;
   images: string[];
-  sizes: string[];
-  colors: { name: string; hex: string }[];
+  sizes?: string[];
+  variations?: any[];
+  colors?: { name: string; hex: string }[];
   desc?: string;
 }
 
@@ -60,6 +64,7 @@ export function App() {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Store Settings
   const [storeSettings, setStoreSettings] = useState<any>({
@@ -101,10 +106,12 @@ export function App() {
   });
   const [directCheckoutItem, setDirectCheckoutItem] = useState<CartItem | null>(null);
 
-  // Form Fields
+  // Form Fields with District & Thana Dropdowns
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
-  const [custAddress, setCustAddress] = useState('');
+  const [custDistrict, setCustDistrict] = useState('Dhaka');
+  const [custThana, setCustThana] = useState('Dhanmondi');
+  const [custStreet, setCustStreet] = useState('');
   const [deliveryArea, setDeliveryArea] = useState<'inside' | 'outside'>('inside');
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
@@ -147,20 +154,24 @@ export function App() {
   useEffect(() => {
     const fetchStore = async () => {
       try {
-        const [catRes, setRes] = await Promise.all([
-          fetch('/api/catalog').then((r) => r.json()),
+        const [catList, prodList, setRes] = await Promise.all([
+          fetch('/api/categories').then((r) => r.json()).catch(() => []),
+          fetch('/api/products').then((r) => r.json()).catch(() => []),
           fetch('/api/settings').then((r) => r.json()).catch(() => ({})),
         ]);
 
-        if (catRes && catRes.products) {
-          setProducts(catRes.products);
-          setCategories(catRes.categories || []);
+        if (Array.isArray(catList) && catList.length > 0) {
+          setCategories(catList);
+        }
+        if (Array.isArray(prodList) && prodList.length > 0) {
+          setProducts(prodList);
 
           // Initialize default sizes
           const initSizes: Record<string, string> = {};
-          catRes.products.forEach((p: Product) => {
-            if (p.sizes && p.sizes.length > 0) {
-              initSizes[p.id] = p.sizes[0];
+          prodList.forEach((p: Product) => {
+            const szs = getProductSizes(p);
+            if (szs.length > 0) {
+              initSizes[p.id] = szs[0];
             }
           });
           setSelectedSizes(initSizes);
@@ -186,6 +197,25 @@ export function App() {
     fetchStore();
     loadReviews();
   }, []);
+
+  // Helper to extract sizes from product or its variants
+  const getProductSizes = (p: Product): string[] => {
+    if (Array.isArray(p.sizes) && p.sizes.length > 0) return p.sizes;
+    if (Array.isArray(p.variations) && p.variations.length > 0) {
+      const fromVars = p.variations.map((v: any) => v.size).filter(Boolean);
+      if (fromVars.length > 0) return Array.from(new Set(fromVars));
+    }
+    return ['0-3M', '3-6M', '6-12M'];
+  };
+
+  // Helper to match product to category
+  const isProductInCategory = (p: Product, cat: Category): boolean => {
+    if (!p || !cat) return false;
+    const pCat = String(p.category || '').toLowerCase().trim();
+    const cId = String(cat.id || '').toLowerCase().trim();
+    const cSlug = String(cat.slug || '').toLowerCase().trim();
+    return pCat === cId || pCat === cSlug || pCat.includes(cSlug) || cSlug.includes(pCat);
+  };
 
   // Filtered Products for Search
   const filteredProducts = useMemo(() => {
@@ -213,7 +243,8 @@ export function App() {
 
   // Cart Utilities
   const addToCart = (product: Product, customSize?: string, customColor?: string) => {
-    const sizeToUse = customSize || selectedSizes[product.id] || product.sizes[0] || 'Standard';
+    const szs = getProductSizes(product);
+    const sizeToUse = customSize || selectedSizes[product.id] || szs[0] || 'Standard';
     const colorToUse = customColor || (product.colors && product.colors[0]?.name) || 'Standard';
 
     setCart((prev) => {
@@ -246,7 +277,8 @@ export function App() {
 
   // 1-Click Direct Buy
   const openDirectBuy = (product: Product, customSize?: string, customColor?: string) => {
-    const sizeToUse = customSize || selectedSizes[product.id] || product.sizes[0] || 'Standard';
+    const szs = getProductSizes(product);
+    const sizeToUse = customSize || selectedSizes[product.id] || szs[0] || 'Standard';
     const colorToUse = customColor || (product.colors && product.colors[0]?.name) || 'Standard';
 
     const item: CartItem = {
@@ -308,17 +340,20 @@ export function App() {
       alert('অনুগ্রহ করে সঠিক ১১ ডিজিটের মোবাইল নাম্বার দিন (যেমন: 017XXXXXXXX)');
       return;
     }
-    if (!custAddress.trim()) {
-      alert('অনুগ্রহ করে আপনার পূর্ণাঙ্গ ঠিকানা ও জেলা উল্লেখ করুন');
+    if (!custStreet.trim()) {
+      alert('অনুগ্রহ করে বাসা নং, রোড নং ও বিস্তারিত ঠিকানা লিখুন');
       return;
     }
 
     setSubmittingOrder(true);
+    const fullAddress = `${custStreet.trim()}, ${custThana}, ${custDistrict}`;
     const orderPayload = {
       customer: {
         name: custName.trim(),
         phone: cleanPh,
-        address: custAddress.trim(),
+        address: fullAddress,
+        district: custDistrict,
+        thana: custThana,
         area: deliveryArea,
       },
       items: checkoutItems.map((i) => ({
@@ -329,7 +364,7 @@ export function App() {
         size: i.size,
         color: i.color,
         subtotal: i.product.price * i.qty,
-        image: i.product.images[0] || i.product.image,
+        image: (i.product.images && i.product.images[0]) || i.product.image || '/uploads/baby-wear-logo.png',
       })),
       itemsTotal: checkoutItemsTotal,
       delivery: deliveryFee,
@@ -449,9 +484,12 @@ export function App() {
 
   // Product Card Renderer Component
   const renderProductCard = (p: Product) => {
-    const curSize = selectedSizes[p.id] || (p.sizes && p.sizes[0]) || 'Standard';
-    const discountPct = p.originalPrice > p.price ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100) : 0;
-    const savings = p.originalPrice > p.price ? p.originalPrice - p.price : 0;
+    const szs = getProductSizes(p);
+    const curSize = selectedSizes[p.id] || szs[0] || 'Standard';
+    const original = p.originalPrice || p.compareAt || p.price;
+    const discountPct = original > p.price ? Math.round(((original - p.price) / original) * 100) : 0;
+    const savings = original > p.price ? original - p.price : 0;
+    const cardImg = (p.images && p.images[0]) || p.image || '/uploads/baby-wear-logo.png';
 
     return (
       <div key={p.id} className="bw-card">
@@ -460,14 +498,14 @@ export function App() {
           className="bw-card-media"
           onClick={() => {
             setQuickViewProduct(p);
-            setQuickViewActiveImg(p.images[0] || p.image || '');
+            setQuickViewActiveImg(cardImg);
           }}
         >
-          {p.badge && <span className="bw-card-badge">{p.badge}</span>}
+          {(p.badge || p.tag) && <span className="bw-card-badge">{p.badge || p.tag}</span>}
           {discountPct > 0 && <span className="bw-card-discount">-{discountPct}% OFF</span>}
 
           <img
-            src={p.images[0] || p.image}
+            src={cardImg}
             alt={p.name}
             className="bw-card-img"
             loading="lazy"
@@ -483,7 +521,7 @@ export function App() {
             title={p.name}
             onClick={() => {
               setQuickViewProduct(p);
-              setQuickViewActiveImg(p.images[0] || p.image || '');
+              setQuickViewActiveImg(cardImg);
             }}
           >
             {p.name}
@@ -492,11 +530,11 @@ export function App() {
           {/* Rating */}
           <div className="bw-card-meta-row">
             <span className="bw-card-stars">⭐ {p.rating || 4.9}</span>
-            <span>({p.ratingCount || 50}+ রিভিউ)</span>
+            <span>({p.ratingCount || 45}+ রিভিউ)</span>
           </div>
 
           {/* Size Selector */}
-          {p.sizes && p.sizes.length > 0 && (
+          {szs.length > 0 && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#64748B' }}>সাইজ:</span>
@@ -508,7 +546,7 @@ export function App() {
                 </span>
               </div>
               <div className="bw-card-sizes">
-                {p.sizes.map((s) => (
+                {szs.map((s) => (
                   <span
                     key={s}
                     className={`bw-size-chip ${curSize === s ? 'selected' : ''}`}
@@ -524,8 +562,8 @@ export function App() {
           {/* Price */}
           <div className="bw-price-row">
             <span className="bw-price-now">৳{p.price}</span>
-            {p.originalPrice > p.price && (
-              <span className="bw-price-old">৳{p.originalPrice}</span>
+            {original > p.price && (
+              <span className="bw-price-old">৳{original}</span>
             )}
             {savings > 0 && (
               <span className="bw-price-save">বাঁচবে ৳{savings}</span>
@@ -593,6 +631,15 @@ export function App() {
       {/* Main Header */}
       <header className="bw-header">
         <div className="bw-header-inner">
+          {/* Mobile Hamburger Button */}
+          <button
+            className="bw-hamburger"
+            onClick={() => setIsMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            ☰
+          </button>
+
           {/* Logo & Brand */}
           <a
             href="/"
@@ -658,7 +705,184 @@ export function App() {
             </button>
           </div>
         </div>
+
+        {/* Secondary Multi-Page Nav Bar (Desktop & Tablet) */}
+        <nav className="bw-nav-bar">
+          <div className="bw-nav-inner">
+            <span
+              className={`bw-nav-link ${activeCategory === 'all' && !searchQuery ? 'active' : ''}`}
+              onClick={() => {
+                setActiveCategory('all');
+                setSearchQuery('');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              🏠 হোম
+            </span>
+
+            <span
+              className={`bw-nav-link ${activeCategory === 'all' && !searchQuery ? '' : ''}`}
+              onClick={() => {
+                setActiveCategory('all');
+                setSearchQuery('');
+                document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              🛍️ সকল পণ্য ({products.length})
+            </span>
+
+            {categories.map((c) => (
+              <span
+                key={c.id}
+                className={`bw-nav-link ${activeCategory === c.id ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveCategory(c.id);
+                  setSearchQuery('');
+                  const el = document.getElementById(`cat-${c.id}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                {getCatIcon(c.slug || c.id)} {c.name.split('(')[0].trim()}
+              </span>
+            ))}
+
+            <span className="bw-nav-link" onClick={() => setIsSizeGuideOpen(true)}>
+              📏 সাইজ চার্ট
+            </span>
+
+            <span
+              className="bw-nav-link"
+              onClick={() => {
+                document.getElementById('reviews-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              💬 কাস্টমার রিভিউ
+            </span>
+
+            <span
+              className="bw-nav-link"
+              onClick={() => {
+                setShowTrackModal(true);
+                setTrackResult(null);
+              }}
+            >
+              📦 অর্ডার ট্র্যাকিং
+            </span>
+          </div>
+        </nav>
       </header>
+
+      {/* Mobile Drawer Navigation */}
+      {isMobileMenuOpen && (
+        <div className="bw-drawer-backdrop" onClick={() => setIsMobileMenuOpen(false)}>
+          <div className="bw-drawer" onClick={(e) => e.stopPropagation()}>
+            <div style={{ padding: '18px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <img src="/uploads/baby-wear-logo.png" alt="Baby Wear" style={{ width: 38, height: 38, borderRadius: '50%' }} />
+                <b style={{ fontFamily: 'var(--font-display)', fontSize: 18, color: '#0F3A66' }}>Baby Wear</b>
+              </div>
+              <button
+                style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#64748B' }}
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '14px 16px', borderBottom: '1px solid #F1F5F9' }}>
+              <input
+                type="text"
+                className="bw-input"
+                style={{ marginBottom: 0, padding: '10px 14px', fontSize: 13 }}
+                placeholder="পোশাক বা সাইজ খুঁজুন..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div style={{ padding: '10px 14px', overflowY: 'auto', flex: 1 }}>
+              <div
+                style={{ padding: '12px 14px', fontSize: 14, fontWeight: 700, color: activeCategory === 'all' ? '#0284C7' : '#1E293B', cursor: 'pointer', borderRadius: 8, background: activeCategory === 'all' ? '#F0F9FF' : 'transparent' }}
+                onClick={() => {
+                  setActiveCategory('all');
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                🏠 হোম ও সকল পণ্য
+              </div>
+
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 1, padding: '12px 14px 6px' }}>
+                ক্যাটাগরি সমূহ
+              </div>
+
+              {categories.map((c) => (
+                <div
+                  key={c.id}
+                  style={{ padding: '11px 14px', fontSize: 13.5, fontWeight: 600, color: activeCategory === c.id ? '#EC4899' : '#334155', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, background: activeCategory === c.id ? '#FDF2F8' : 'transparent' }}
+                  onClick={() => {
+                    setActiveCategory(c.id);
+                    setIsMobileMenuOpen(false);
+                    const el = document.getElementById(`cat-${c.id}`);
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <span>{getCatIcon(c.slug || c.id)}</span>
+                  <span>{c.name}</span>
+                </div>
+              ))}
+
+              <div style={{ borderTop: '1px solid #F1F5F9', marginTop: 14, paddingTop: 10 }}>
+                <div
+                  style={{ padding: '11px 14px', fontSize: 13.5, fontWeight: 600, color: '#0284C7', cursor: 'pointer' }}
+                  onClick={() => {
+                    setIsSizeGuideOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  📏 সাইজ গাইড চার্ট
+                </div>
+                <div
+                  style={{ padding: '11px 14px', fontSize: 13.5, fontWeight: 600, color: '#0284C7', cursor: 'pointer' }}
+                  onClick={() => {
+                    setShowTrackModal(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  📦 অর্ডার ট্র্যাক করুন
+                </div>
+                <div
+                  style={{ padding: '11px 14px', fontSize: 13.5, fontWeight: 600, color: '#EC4899', cursor: 'pointer' }}
+                  onClick={() => {
+                    setIsReviewModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  ✍️ কাস্টমার রিভিউ দিন
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 20px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC' }}>
+              <a
+                href={`tel:${storeSettings.hotline}`}
+                className="bw-btn bw-btn-blue"
+                style={{ width: '100%', padding: '10px', fontSize: 13, marginBottom: 8 }}
+              >
+                📞 কল দিন: {storeSettings.hotline}
+              </a>
+              <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noreferrer"
+                className="bw-btn"
+                style={{ width: '100%', padding: '10px', fontSize: 13, background: '#22C55E', color: '#FFF' }}
+              >
+                💬 WhatsApp চ্যাট
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hero Showcase Section */}
       <section className="bw-hero">
@@ -717,45 +941,45 @@ export function App() {
             <div className="bw-hero-floating-badge">
               <span style={{ fontSize: 24 }}>⭐</span>
               <div>
-                <b style={{ fontSize: 13, color: '#0F172A', display: 'block' }}>৪.৯/৫ স্টার রেটিং</b>
-                <span style={{ fontSize: 11.5, color: '#64748B' }}>১২,৫০০+ সন্তুষ্ট মা-বাবা সারাদেশে</span>
+                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block', lineHeight: 1.3 }}>৪.৯/৫ স্টার রেটিং</b>
+                <span style={{ fontSize: 11.5, color: '#64748B', lineHeight: 1.4 }}>১২,৫০০+ সন্তুষ্ট মা-বাবা সারাদেশে</span>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trust & Features Bar */}
+      {/* Trust & Features Bar (Fixed Bengali line clipping) */}
       <section className="bw-features-bar">
         <div className="bw-feature-item">
           <div className="bw-feature-icon">🌿</div>
-          <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>১০০% অর্গানিক কম্বড সুতি</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>নিকেল-ফ্রি স্ন্যাপ বাটন, ত্বক থাকবে র‍্যাশমুক্ত</span>
+          <div className="bw-feature-content">
+            <div className="bw-feature-title">১০০% অর্গানিক কম্বড সুতি</div>
+            <div className="bw-feature-desc">নিকেল-ফ্রি স্ন্যাপ বাটন, ত্বক থাকবে র‍্যাশমুক্ত</div>
           </div>
         </div>
 
         <div className="bw-feature-item bw-feature-pink">
           <div className="bw-feature-icon">🚚</div>
-          <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>ক্যাশ অন ডেলিভারি</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>পণ্য হাতে পেয়ে চেক করে মূল্য পরিশোধের সুবিধা</span>
+          <div className="bw-feature-content">
+            <div className="bw-feature-title">ক্যাশ অন ডেলিভারি</div>
+            <div className="bw-feature-desc">পণ্য হাতে পেয়ে চেক করে মূল্য পরিশোধের সুবিধা</div>
           </div>
         </div>
 
         <div className="bw-feature-item">
           <div className="bw-feature-icon">🔄</div>
-          <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>৭ দিনে সহজ সাইজ এক্সচেঞ্জ</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>সাইজ ছোট বা বড় হলে দ্রুত পরিবর্তন গ্যারান্টি</span>
+          <div className="bw-feature-content">
+            <div className="bw-feature-title">৭ দিনে সহজ সাইজ এক্সচেঞ্জ</div>
+            <div className="bw-feature-desc">সাইজ ছোট বা বড় হলে দ্রুত পরিবর্তন গ্যারান্টি</div>
           </div>
         </div>
 
         <div className="bw-feature-item bw-feature-pink">
           <div className="bw-feature-icon">💬</div>
-          <div>
-            <b style={{ fontSize: 14, color: '#0F172A', display: 'block' }}>প্যারেন্টস হেল্পলাইন</b>
-            <span style={{ fontSize: 12, color: '#64748B' }}>হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ সেবা</span>
+          <div className="bw-feature-content">
+            <div className="bw-feature-title">প্যারেন্টস হেল্পলাইন</div>
+            <div className="bw-feature-desc">হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ সেবা</div>
           </div>
         </div>
       </section>
@@ -824,8 +1048,8 @@ export function App() {
         /* If Single Category selected */
         <section className="bw-cat-block">
           {(() => {
-            const catObj = categories.find((c) => c.id === activeCategory);
-            const catProds = products.filter((p) => p.category === activeCategory);
+            const catObj = categories.find((c) => c.id === activeCategory || c.slug === activeCategory);
+            const catProds = products.filter((p) => catObj && isProductInCategory(p, catObj));
             const catIcon = getCatIcon(catObj?.slug || activeCategory);
 
             return (
@@ -863,7 +1087,7 @@ export function App() {
         /* Default: Categorized Homepage Shelf Display */
         <div>
           {categories.map((cat) => {
-            const catProds = products.filter((p) => p.category === cat.id || p.category === cat.slug);
+            const catProds = products.filter((p) => isProductInCategory(p, cat));
             if (catProds.length === 0) return null;
             const catIcon = getCatIcon(cat.slug || cat.id);
 
@@ -901,7 +1125,7 @@ export function App() {
       )}
 
       {/* REAL PARENT FEEDBACK & UPLOAD SECTION */}
-      <section className="bw-reviews-container">
+      <section id="reviews-section" className="bw-reviews-container">
         <div className="bw-reviews-header-row">
           <div>
             <h2 className="bw-section-title" style={{ textAlign: 'left', marginBottom: 4 }}>
@@ -988,29 +1212,49 @@ export function App() {
         </svg>
       </div>
 
-      {/* Sticky Mobile Bar */}
+      {/* Sticky Mobile Bottom Bar (Multi-Page Navigation on Phones) */}
       <div className="bw-mobile-bar">
-        <a
-          href={`tel:${storeSettings.hotline}`}
+        <button
           className="bw-btn bw-btn-outline"
-          style={{ flex: 1, padding: '10px 8px', fontSize: 13 }}
+          style={{ flex: 1, padding: '8px 4px', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 2, border: 'none' }}
+          onClick={() => {
+            setActiveCategory('all');
+            setSearchQuery('');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
         >
-          📞 কল দিন
-        </a>
+          <span style={{ fontSize: 16 }}>🏠</span>
+          <span>হোম</span>
+        </button>
 
-        <a
-          href={whatsappLink}
-          target="_blank"
-          rel="noreferrer"
+        <button
           className="bw-btn bw-btn-outline"
-          style={{ flex: 1, padding: '10px 8px', fontSize: 13, color: '#16A34A' }}
+          style={{ flex: 1, padding: '8px 4px', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 2, border: 'none' }}
+          onClick={() => {
+            setActiveCategory('all');
+            setSearchQuery('');
+            document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+          }}
         >
-          💬 WhatsApp
-        </a>
+          <span style={{ fontSize: 16 }}>🛍️</span>
+          <span>শপ</span>
+        </button>
+
+        <button
+          className="bw-btn bw-btn-outline"
+          style={{ flex: 1, padding: '8px 4px', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 2, border: 'none' }}
+          onClick={() => {
+            setShowTrackModal(true);
+            setTrackResult(null);
+          }}
+        >
+          <span style={{ fontSize: 16 }}>📦</span>
+          <span>ট্র্যাক</span>
+        </button>
 
         <button
           className="bw-btn bw-btn-pink"
-          style={{ flex: 1.3, padding: '10px 10px', fontSize: 13 }}
+          style={{ flex: 1.5, padding: '8px 10px', fontSize: 12.5 }}
           onClick={() => {
             if (cart.length > 0) {
               setDirectCheckoutItem(null);
@@ -1020,7 +1264,7 @@ export function App() {
             }
           }}
         >
-          ⚡ অর্ডার করুন {cartTotalQty > 0 ? `(${cartTotalQty})` : ''}
+          🛒 কার্ট ({cartTotalQty})
         </button>
       </div>
 
@@ -1032,10 +1276,10 @@ export function App() {
               ✕
             </button>
 
-            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 4 }}>
+            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 4, lineHeight: 1.3 }}>
               ✍️ আপনার অভিজ্ঞতা ও রিভিউ শেয়ার করুন
             </h3>
-            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 18 }}>
+            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 18, lineHeight: 1.45 }}>
               আপনার মতামত ও ছবি অন্যান্য মা-বাবাদের সঠিক সিদ্ধান্ত নিতে সাহায্য করবে
             </p>
 
@@ -1162,7 +1406,7 @@ export function App() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24 }}>
               <div>
                 <img
-                  src={quickViewActiveImg || quickViewProduct.images[0] || quickViewProduct.image}
+                  src={quickViewActiveImg || (quickViewProduct.images && quickViewProduct.images[0]) || quickViewProduct.image || '/uploads/baby-wear-logo.png'}
                   alt={quickViewProduct.name}
                   style={{ width: '100%', height: 280, objectFit: 'cover', borderRadius: 16 }}
                 />
@@ -1190,25 +1434,25 @@ export function App() {
 
               <div>
                 <span className="bw-card-fabric-tag">🌿 {quickViewProduct.fabric || '১০০% প্রিমিয়াম সুতি'}</span>
-                <h3 style={{ fontSize: 18, color: '#0F172A', fontWeight: 800, marginTop: 6, marginBottom: 8 }}>
+                <h3 style={{ fontSize: 18, color: '#0F172A', fontWeight: 800, marginTop: 6, marginBottom: 8, lineHeight: 1.35 }}>
                   {quickViewProduct.name}
                 </h3>
-                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.5, marginBottom: 14 }}>
-                  {quickViewProduct.desc}
+                <p style={{ fontSize: 13, color: '#64748B', lineHeight: 1.55, marginBottom: 14 }}>
+                  {quickViewProduct.desc || 'বাচ্চার জন্য অত্যন্ত নরম ও আরামদায়ক ১০০% পিওর সুতি পোশাক।'}
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16 }}>
                   <span style={{ fontSize: 24, fontWeight: 800, color: '#BE185D' }}>
                     ৳{quickViewProduct.price}
                   </span>
-                  {quickViewProduct.originalPrice > quickViewProduct.price && (
+                  {(quickViewProduct.originalPrice || quickViewProduct.compareAt || 0) > quickViewProduct.price && (
                     <span style={{ fontSize: 14, color: '#94A3B8', textDecoration: 'line-through' }}>
-                      ৳{quickViewProduct.originalPrice}
+                      ৳{quickViewProduct.originalPrice || quickViewProduct.compareAt}
                     </span>
                   )}
                 </div>
 
-                {quickViewProduct.sizes && (
+                {getProductSizes(quickViewProduct).length > 0 && (
                   <div style={{ marginBottom: 16 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                       <b style={{ fontSize: 12, color: '#0F172A' }}>সাইজ:</b>
@@ -1220,7 +1464,7 @@ export function App() {
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {quickViewProduct.sizes.map((s) => (
+                      {getProductSizes(quickViewProduct).map((s) => (
                         <span
                           key={s}
                           className={`bw-size-chip ${selectedSizes[quickViewProduct.id] === s ? 'selected' : ''}`}
@@ -1238,7 +1482,8 @@ export function App() {
                     className="bw-btn bw-btn-pink"
                     style={{ flex: 1.2, padding: '12px' }}
                     onClick={() => {
-                      const curS = selectedSizes[quickViewProduct.id] || quickViewProduct.sizes[0];
+                      const szs = getProductSizes(quickViewProduct);
+                      const curS = selectedSizes[quickViewProduct.id] || szs[0];
                       setQuickViewProduct(null);
                       openDirectBuy(quickViewProduct, curS);
                     }}
@@ -1250,7 +1495,8 @@ export function App() {
                     className="bw-btn bw-btn-blue"
                     style={{ flex: 1, padding: '12px' }}
                     onClick={() => {
-                      const curS = selectedSizes[quickViewProduct.id] || quickViewProduct.sizes[0];
+                      const szs = getProductSizes(quickViewProduct);
+                      const curS = selectedSizes[quickViewProduct.id] || szs[0];
                       addToCart(quickViewProduct, curS);
                     }}
                   >
@@ -1271,10 +1517,10 @@ export function App() {
               ✕
             </button>
 
-            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 6 }}>
+            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 6, lineHeight: 1.3 }}>
               📏 বেবি ওয়্যার স্ট্যান্ডার্ড সাইজ গাইড
             </h3>
-            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 14 }}>
+            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 14, lineHeight: 1.45 }}>
               আপনার সোনামণির বয়স, উচ্চতা ও ওজন মিলিয়ে সঠিক সাইজ নির্বাচন করুন:
             </p>
 
@@ -1327,7 +1573,7 @@ export function App() {
               </tbody>
             </table>
 
-            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 12, fontSize: 12, color: '#0369A1' }}>
+            <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 12, fontSize: 12, color: '#0369A1', lineHeight: 1.5 }}>
               💡 <b>টিপ:</b> যদি বাবু স্বাস্থ্যবান হয় তবে ১ সাইজ বড় অর্ডার করার পরামর্শ দেওয়া হচ্ছে। সাইজ ছোট বা বড় হলে ৭ দিনের মধ্যে পরিবর্তন সুবিধা রয়েছে।
             </div>
           </div>
@@ -1339,7 +1585,7 @@ export function App() {
         <div className="bw-modal-backdrop" onClick={() => setIsCartOpen(false)}>
           <div className="bw-modal-card" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-              <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F172A', margin: 0 }}>
+              <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F172A', margin: 0, lineHeight: 1.3 }}>
                 🛒 আপনার শপিং ব্যাগ ({cartTotalQty})
               </h3>
               <button className="bw-modal-close" onClick={() => setIsCartOpen(false)}>
@@ -1350,12 +1596,12 @@ export function App() {
             {/* Free Shipping Progress */}
             <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: 12, padding: 12, marginBottom: 16 }}>
               {cartSubtotal >= storeSettings.freeShipThreshold ? (
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A', textAlign: 'center' }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#16A34A', textAlign: 'center', lineHeight: 1.4 }}>
                   🎉 অভিনন্দন! আপনি <b>ফ্রি ডেলিভারি</b> পেয়েছেন!
                 </div>
               ) : (
                 <div>
-                  <div style={{ fontSize: 12.5, color: '#0369A1', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ fontSize: 12.5, color: '#0369A1', marginBottom: 6, display: 'flex', justifyContent: 'space-between', lineHeight: 1.4 }}>
                     <span>ফ্রি ডেলিভারির জন্য আর প্রয়োজন:</span>
                     <b>৳{storeSettings.freeShipThreshold - cartSubtotal}</b>
                   </div>
@@ -1400,7 +1646,7 @@ export function App() {
                       }}
                     >
                       <img
-                        src={item.product.images[0] || item.product.image}
+                        src={(item.product.images && item.product.images[0]) || item.product.image || '/uploads/baby-wear-logo.png'}
                         alt={item.product.name}
                         style={{ width: 60, height: 60, borderRadius: 12, objectFit: 'cover' }}
                       />
@@ -1460,7 +1706,7 @@ export function App() {
         </div>
       )}
 
-      {/* 1-Click Fast Checkout Modal */}
+      {/* 1-Click Fast Checkout Modal with District & Thana Dropdowns */}
       {isCheckoutOpen && (
         <div className="bw-modal-backdrop" onClick={() => setIsCheckoutOpen(false)}>
           <div className="bw-modal-card" onClick={(e) => e.stopPropagation()}>
@@ -1471,7 +1717,7 @@ export function App() {
             {orderSuccess ? (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <div style={{ fontSize: 56, marginBottom: 12 }}>🎉</div>
-                <h3 style={{ fontSize: 24, color: '#0F3A66', fontFamily: 'var(--font-display)', marginBottom: 8 }}>
+                <h3 style={{ fontSize: 24, color: '#0F3A66', fontFamily: 'var(--font-display)', marginBottom: 8, lineHeight: 1.3 }}>
                   ধন্যবাদ! আপনার অর্ডারটি নিশ্চিত হয়েছে
                 </h3>
                 <p style={{ fontSize: 14, color: '#334155', lineHeight: 1.6, marginBottom: 20 }}>
@@ -1482,7 +1728,7 @@ export function App() {
                 <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: 16, textAlign: 'left', marginBottom: 24 }}>
                   <b style={{ fontSize: 14, color: '#166534', display: 'block', marginBottom: 6 }}>ডেলিভারি বিবরণী:</b>
                   <div style={{ fontSize: 13, color: '#1F2937', lineHeight: 1.6 }}>
-                    <div>গ্রাহকের নাম: {orderSuccess.customer?.name}</div>
+                    <div>গ্রাহকের নাম: <b>{orderSuccess.customer?.name}</b></div>
                     <div>মোবাইল: {orderSuccess.customer?.phone}</div>
                     <div>ঠিকানা: {orderSuccess.customer?.address}</div>
                     <div>মোট বিল: <b>৳{orderSuccess.total}</b> (ক্যাশ অন ডেলিভারি)</div>
@@ -1519,10 +1765,10 @@ export function App() {
               </div>
             ) : (
               <div>
-                <h3 style={{ fontSize: 22, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 4 }}>
+                <h3 style={{ fontSize: 22, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 4, lineHeight: 1.3 }}>
                   🛍️ ক্যাশ অন ডেলিভারি অর্ডার ফরম
                 </h3>
-                <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
+                <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16, lineHeight: 1.45 }}>
                   পণ্য হাতে পেয়ে মূল্য পরিশোধ করতে নিচের তথ্যগুলো সঠিকভাবে পূরণ করুন:
                 </p>
 
@@ -1547,17 +1793,56 @@ export function App() {
                       onChange={(e) => setCustPhone(e.target.value)}
                     />
 
-                    <label className="bw-form-label">সম্পূর্ণ ডেলিভারি ঠিকানা (বাসা/রোড/থানা/জেলা) *</label>
+                    {/* District & Thana Dropdowns */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label className="bw-form-label">জেলা নির্বাচন করুন *</label>
+                        <select
+                          className="bw-input"
+                          value={custDistrict}
+                          onChange={(e) => {
+                            const d = e.target.value;
+                            setCustDistrict(d);
+                            const thanas = BD_GEO[d] || [];
+                            setCustThana(thanas[0] || '');
+                            setDeliveryArea(d === 'Dhaka' ? 'inside' : 'outside');
+                          }}
+                        >
+                          {Object.keys(BD_GEO).map((d) => (
+                            <option key={d} value={d}>
+                              {d} {d === 'Dhaka' ? '(ঢাকা)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="bw-form-label">থানা / উপজেলা *</label>
+                        <select
+                          className="bw-input"
+                          value={custThana}
+                          onChange={(e) => setCustThana(e.target.value)}
+                        >
+                          {(BD_GEO[custDistrict] || []).map((th) => (
+                            <option key={th} value={th}>
+                              {th}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <label className="bw-form-label">বাসা নং, রোড নং ও বিস্তারিত ঠিকানা *</label>
                     <textarea
                       className="bw-input"
                       rows={2}
-                      placeholder="বাসা নং, রোড নং, এলাকা এবং জেলা উল্লেখ করুন"
+                      placeholder="বাসা নং, রোড নং, এলাকা এবং কোনো ল্যান্ডমার্ক"
                       required
-                      value={custAddress}
-                      onChange={(e) => setCustAddress(e.target.value)}
+                      value={custStreet}
+                      onChange={(e) => setCustStreet(e.target.value)}
                     />
 
-                    <label className="bw-form-label">ডেলিভারি এরিয়া নির্বাচন করুন *</label>
+                    <label className="bw-form-label">ডেলিভারি এরিয়া ও চার্জ *</label>
                     <div className="bw-radio-group">
                       <div
                         className={`bw-radio-card ${deliveryArea === 'inside' ? 'active' : ''}`}
@@ -1620,7 +1905,7 @@ export function App() {
                       <b>৳{checkoutItemsTotal}</b>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                      <span>ডেলিভারি চার্জ:</span>
+                      <span>ডেলিভারি চার্জ ({deliveryArea === 'inside' ? 'ঢাকা' : 'ঢাকার বাইরে'}):</span>
                       <b>{isFreeDelivery ? 'ফ্রি (৳০)' : `৳${deliveryFee}`}</b>
                     </div>
                     {discountAmount > 0 && (
@@ -1658,10 +1943,10 @@ export function App() {
               ✕
             </button>
 
-            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 6 }}>
+            <h3 style={{ fontSize: 20, fontFamily: 'var(--font-display)', color: '#0F3A66', marginBottom: 6, lineHeight: 1.3 }}>
               📦 আপনার অর্ডার লাইভ ট্র্যাক করুন
             </h3>
-            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: '#64748B', marginBottom: 16, lineHeight: 1.45 }}>
               অর্ডার করার সময় ব্যবহৃত ১১ ডিজিটের মোবাইল নাম্বার অথবা অর্ডার আইডি দিন:
             </p>
 
@@ -1782,7 +2067,7 @@ export function App() {
           <div>
             <h4 style={{ fontSize: 15, color: '#F8FAFC', marginBottom: 14 }}>কুইক লিংক</h4>
             <ul style={{ listStyle: 'none', fontSize: 13, color: '#94A3B8', lineHeight: 2 }}>
-              {categories.slice(0, 5).map((c) => (
+              {categories.slice(0, 6).map((c) => (
                 <li key={c.id}>
                   <a
                     href={`#cat-${c.id}`}

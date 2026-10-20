@@ -306,7 +306,8 @@ app.post('/api/checkout/ping', (req, res) => {
 });
 
 // ---- public catalog ----
-app.get('/api/categories', (_req, res) => res.json(getCatalog().categories));
+app.get('/api/catalog', (_req, res) => res.json(getCatalog()));
+app.get('/api/categories', (_req, res) => res.json(getCatalog().categories || []));
 
 // ---- master color library ----
 app.get('/api/colors', (_req, res) => res.json({ colors: getColors() }));
