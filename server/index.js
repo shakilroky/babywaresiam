@@ -1817,14 +1817,18 @@ app.get('/api/reviews', (req, res) => {
   const all = getReviews() || {};
   const pid = req.query.pid ? String(req.query.pid).trim() : '';
   if (pid) {
-    const list = all[pid] || [];
-    const avg = list.length ? list.reduce((s, r) => s + (r.rating || 5), 0) / list.length : 0;
+    const list = (all[pid] || []).filter((r) => r.approved === true);
+    const avg = list.length ? list.reduce((s, r) => s + (r.rating || 5), 0) / list.length : 5.0;
     return res.json({ count: list.length, avg: Math.round(avg * 10) / 10, reviews: list });
   }
   const flattened = [];
   for (const [prodId, revs] of Object.entries(all)) {
     if (Array.isArray(revs)) {
-      revs.forEach((r) => flattened.push({ ...r, productId: prodId }));
+      revs.forEach((r) => {
+        if (r.approved === true) {
+          flattened.push({ ...r, productId: prodId });
+        }
+      });
     }
   }
   flattened.sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
@@ -1832,8 +1836,8 @@ app.get('/api/reviews', (req, res) => {
   res.json({ count: flattened.length, avg: Math.round(avg * 10) / 10, reviews: flattened });
 });
 app.get('/api/reviews/:pid', (req, res) => {
-  const list = getReviews()[req.params.pid] || [];
-  const avg = list.length ? list.reduce((s, r) => s + (r.rating || 5), 0) / list.length : 0;
+  const list = (getReviews()[req.params.pid] || []).filter((r) => r.approved === true);
+  const avg = list.length ? list.reduce((s, r) => s + (r.rating || 5), 0) / list.length : 5.0;
   res.json({ count: list.length, avg: Math.round(avg * 10) / 10, reviews: list });
 });
 app.post('/api/reviews', (req, res) => {
@@ -1877,16 +1881,58 @@ app.post('/api/reviews', (req, res) => {
     productName,
     image: savedImgUrl,
     verified: true,
+    approved: false, // Requires admin approval before appearing on storefront
     at: new Date().toISOString(),
   };
   list.unshift(newRev);
   all[pid] = list;
   saveReviews(all);
-  res.status(201).json({ ok: true, review: newRev });
+  res.status(201).json({
+    ok: true,
+    review: newRev,
+    message: 'আপনার রিভিউ সফলভাবে জমা হয়েছে। অ্যাডমিন পর্যালোচনার পর তা ওয়েবসাইটে প্রকাশিত হবে।'
+  });
 });
-app.delete('/api/reviews/:pid/:id', adminAuth, (req, res) => {
+
+// Admin Review Endpoints
+app.get('/api/admin/reviews', adminAuth, (_req, res) => {
+  const all = getReviews() || {};
+  const list = [];
+  for (const [prodId, revs] of Object.entries(all)) {
+    if (Array.isArray(revs)) {
+      revs.forEach((r) => list.push({ ...r, productId: prodId }));
+    }
+  }
+  list.sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime());
+  res.json({ reviews: list, total: list.length, pending: list.filter((r) => !r.approved).length });
+});
+
+app.put('/api/admin/reviews/:pid/:id/approve', adminAuth, (req, res) => {
   const all = getReviews();
-  all[req.params.pid] = (all[req.params.pid] || []).filter((r) => r.id !== req.params.id);
+  const pid = req.params.pid;
+  const list = all[pid] || [];
+  const item = list.find((r) => r.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'Review not found' });
+  item.approved = true;
+  saveReviews(all);
+  res.json({ ok: true, review: item });
+});
+
+app.put('/api/admin/reviews/:pid/:id/reject', adminAuth, (req, res) => {
+  const all = getReviews();
+  const pid = req.params.pid;
+  const list = all[pid] || [];
+  const item = list.find((r) => r.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'Review not found' });
+  item.approved = false;
+  saveReviews(all);
+  res.json({ ok: true, review: item });
+});
+
+app.delete('/api/admin/reviews/:pid/:id', adminAuth, (req, res) => {
+  const all = getReviews();
+  const pid = req.params.pid;
+  all[pid] = (all[pid] || []).filter((r) => r.id !== req.params.id);
   saveReviews(all);
   res.json({ ok: true });
 });

@@ -1,5 +1,22 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { BD_GEO } from './bd-geo';
+import { BD_GEO, BD_DISTRICTS_BN } from './bd-geo';
+import { SearchableSelect } from './SearchableSelect';
+import {
+  WhatsAppIcon,
+  TruckIcon,
+  LeafIcon,
+  ShieldCheckIcon,
+  ExchangeIcon,
+  CartIcon,
+  PhoneIcon,
+  SearchIcon,
+  StarIcon,
+  ChevronDownIcon,
+  CheckCircleIcon,
+  RulerIcon,
+  CloseIcon,
+  TrashIcon,
+} from './icons';
 
 // Product Interface
 interface Product {
@@ -33,6 +50,7 @@ interface Category {
   name: string;
   slug: string;
   blurb?: string;
+  image?: string;
 }
 
 interface Review {
@@ -77,6 +95,17 @@ export function App() {
   });
 
   // Modals & Drawers
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [viewingProductImg, setViewingProductImg] = useState<string>('');
+  const [viewingProductTab, setViewingProductTab] = useState<'desc' | 'specs' | 'size' | 'care' | 'delivery'>('desc');
+
+  const openProductDetail = (p: Product) => {
+    setViewingProduct(p);
+    setViewingProductImg((p.images && p.images[0]) || p.image || '/uploads/baby-wear-logo.png');
+    setViewingProductTab('desc');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [quickViewActiveImg, setQuickViewActiveImg] = useState<string>('');
   const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
@@ -460,7 +489,7 @@ export function App() {
       }).then((r) => r.json());
 
       if (res.ok || res.review) {
-        showToast('🎉 ধন্যবাদ! আপনার মূল্যবান রিভিউটি সফলভাবে যুক্ত হয়েছে।');
+        showToast('🎉 ধন্যবাদ! আপনার রিভিউ জমা হয়েছে। অ্যাডমিন পর্যালোচনার পর তা ওয়েবসাইটে প্রকাশিত হবে।');
         setIsReviewModalOpen(false);
         setRevName('');
         setRevLocation('');
@@ -482,6 +511,407 @@ export function App() {
     'আসসালামু আলাইকুম, Baby Wear থেকে কিছু পোশাক সম্পর্কে জানতে চাচ্ছি।'
   )}`;
 
+  // Dedicated Single Product Page View
+  const renderSingleProductView = () => {
+    if (!viewingProduct) return null;
+    const p = viewingProduct;
+    const szs = getProductSizes(p);
+    const curSize = selectedSizes[p.id] || szs[0] || 'Standard';
+    const original = p.originalPrice || p.compareAt || p.price;
+    const discountPct = original > p.price ? Math.round(((original - p.price) / original) * 100) : 0;
+    const savings = original > p.price ? original - p.price : 0;
+    const mainImg = viewingProductImg || (p.images && p.images[0]) || p.image || '/uploads/baby-wear-logo.png';
+    const catObj = categories.find((c) => isProductInCategory(p, c));
+    const prodReviews = reviews.filter((r) => r.productId === p.id);
+
+    return (
+      <main className="bw-product-page">
+        {/* Breadcrumb Navigation */}
+        <div className="bw-breadcrumb-wrap">
+          <div className="bw-breadcrumb">
+            <button className="bw-back-btn" onClick={() => setViewingProduct(null)}>
+              ← সব পোশাকে ফিরে যান
+            </button>
+            <span className="bw-crumb-sep">/</span>
+            <span
+              onClick={() => {
+                setViewingProduct(null);
+                setActiveCategory('all');
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              হোম
+            </span>
+            <span className="bw-crumb-sep">/</span>
+            <span
+              onClick={() => {
+                setViewingProduct(null);
+                if (catObj) setActiveCategory(catObj.id);
+              }}
+              style={{ cursor: 'pointer' }}
+            >
+              {catObj?.name || p.category}
+            </span>
+            <span className="bw-crumb-sep">/</span>
+            <span className="bw-crumb-active">{p.name}</span>
+          </div>
+        </div>
+
+        {/* Product Details Hero */}
+        <div className="bw-product-detail-container">
+          {/* Gallery */}
+          <div className="bw-product-gallery">
+            <div className="bw-main-image-wrap">
+              <img src={mainImg} alt={p.name} className="bw-main-image" />
+              {(p.badge || p.tag) && <span className="bw-p-badge">{p.badge || p.tag}</span>}
+              {discountPct > 0 && <span className="bw-p-discount">-{discountPct}% OFF</span>}
+            </div>
+
+            {p.images && p.images.length > 1 && (
+              <div className="bw-thumbnail-row">
+                {p.images.map((img, i) => (
+                  <div
+                    key={i}
+                    className={`bw-thumbnail-card ${mainImg === img ? 'is-active' : ''}`}
+                    onClick={() => setViewingProductImg(img)}
+                  >
+                    <img src={img} alt={`thumb-${i}`} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Product Information */}
+          <div className="bw-product-info">
+            {p.fabric && (
+              <div className="bw-p-fabric-pill">
+                <LeafIcon size={16} color="#059669" />
+                <span>{p.fabric}</span>
+              </div>
+            )}
+
+            <h1 className="bw-p-title">{p.name}</h1>
+            {p.subtitle && <p className="bw-p-subtitle">{p.subtitle}</p>}
+
+            {/* Rating Bar */}
+            <div className="bw-p-meta-bar">
+              <div className="bw-p-stars">
+                <StarIcon size={18} color="#F59E0B" />
+                <span>{p.rating || 5.0}</span>
+                <span className="bw-p-rev-count">({p.ratingCount || 48} ভেরিফাইড প্যারেন্ট রিভিউ)</span>
+              </div>
+              <div className="bw-stock-chip">
+                <span className="bw-stock-dot"></span>
+                <span>স্টকে আছে (ইন-স্টক)</span>
+              </div>
+            </div>
+
+            {/* Price Box */}
+            <div className="bw-p-price-card">
+              <div className="bw-p-price-row">
+                <span className="bw-p-curr-price">৳{p.price}</span>
+                {original > p.price && <span className="bw-p-orig-price">৳{original}</span>}
+                {savings > 0 && <span className="bw-p-savings-badge">আপনার সাশ্রয় ৳{savings}</span>}
+              </div>
+              <p className="bw-p-cod-note">
+                <ShieldCheckIcon size={16} color="#0284C7" />
+                <span>ক্যাশ অন ডেলিভারি: পণ্য দেখে নিশ্চিত হয়ে মূল্য পরিশোধের সুযোগ</span>
+              </p>
+            </div>
+
+            {/* Sizes */}
+            {szs.length > 0 && (
+              <div className="bw-p-option-group">
+                <div className="bw-p-option-head">
+                  <span className="bw-p-option-label">সাইজ নির্বাচন করুন:</span>
+                  <button
+                    type="button"
+                    className="bw-size-guide-trigger"
+                    onClick={() => setIsSizeGuideOpen(true)}
+                  >
+                    <RulerIcon size={15} color="#0284C7" />
+                    <span>সাইজ গাইড</span>
+                  </button>
+                </div>
+                <div className="bw-p-size-chips">
+                  {szs.map((s) => (
+                    <button
+                      type="button"
+                      key={s}
+                      className={`bw-p-size-btn ${curSize === s ? 'is-selected' : ''}`}
+                      onClick={() => setSelectedSizes((prev) => ({ ...prev, [p.id]: s }))}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* CTA Buttons */}
+            <div className="bw-p-cta-group">
+              <button
+                type="button"
+                className="bw-btn-buy-now"
+                onClick={() => openDirectBuy(p, curSize)}
+              >
+                ⚡ এখনই ক্যাশ অন ডেলিভারিতে অর্ডার করুন
+              </button>
+
+              <button
+                type="button"
+                className="bw-btn-add-cart"
+                onClick={() => addToCart(p, curSize)}
+              >
+                <CartIcon size={18} color="#0284C7" />
+                <span>কার্টে যোগ করুন</span>
+              </button>
+
+              <a
+                href={`https://wa.me/${storeSettings.whatsapp}?text=${encodeURIComponent(
+                  `আসসালামু আলাইকুম, আমি Baby Wear এর "${p.name}" সম্পর্কে জানতে চাচ্ছি।`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bw-btn-whatsapp-inquiry"
+              >
+                <WhatsAppIcon size={20} variant="official" />
+                <span>হোয়াটসঅ্যাপে সরাসরি প্রশ্ন করুন বা অর্ডার দিন</span>
+              </a>
+            </div>
+
+            {/* Trust Badges */}
+            <div className="bw-trust-grid">
+              <div className="bw-trust-item">
+                <TruckIcon size={20} color="#0284C7" />
+                <div>
+                  <div className="bw-t-title">ক্যাশ অন ডেলিভারি</div>
+                  <div className="bw-t-desc">পণ্য হাতে পেয়ে চেক করে পেমেন্ট</div>
+                </div>
+              </div>
+              <div className="bw-trust-item">
+                <LeafIcon size={20} color="#059669" />
+                <div>
+                  <div className="bw-t-title">১০০% পিওর সুতি</div>
+                  <div className="bw-t-desc">শিশুর সংবেদনশীল ত্বকে আরামদায়ক</div>
+                </div>
+              </div>
+              <div className="bw-trust-item">
+                <ExchangeIcon size={20} color="#D97706" />
+                <div>
+                  <div className="bw-t-title">সহজ এক্সচেঞ্জ সুবিধা</div>
+                  <div className="bw-t-desc">সাইজ না মিললে ৭ দিনে পরিবর্তন</div>
+                </div>
+              </div>
+              <div className="bw-trust-item">
+                <ShieldCheckIcon size={20} color="#8B5CF6" />
+                <div>
+                  <div className="bw-t-title">নিরাপদ ও নিকেল-মুক্ত</div>
+                  <div className="bw-t-desc">চিকিৎসক অনুমোদিত নিরাপদ ম্যাটেরিয়াল</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Full Specifications & Tabs */}
+        <div className="bw-p-tabs-section">
+          <div className="bw-p-tabs-header">
+            <button
+              className={`bw-p-tab-btn ${viewingProductTab === 'desc' ? 'is-active' : ''}`}
+              onClick={() => setViewingProductTab('desc')}
+            >
+              📋 বিস্তারিত বিবরণ
+            </button>
+            <button
+              className={`bw-p-tab-btn ${viewingProductTab === 'specs' ? 'is-active' : ''}`}
+              onClick={() => setViewingProductTab('specs')}
+            >
+              🧵 ফেব্রিক ও মেটেরিয়াল
+            </button>
+            <button
+              className={`bw-p-tab-btn ${viewingProductTab === 'size' ? 'is-active' : ''}`}
+              onClick={() => setViewingProductTab('size')}
+            >
+              📏 সাইজ চার্ট ও মাপ
+            </button>
+            <button
+              className={`bw-p-tab-btn ${viewingProductTab === 'care' ? 'is-active' : ''}`}
+              onClick={() => setViewingProductTab('care')}
+            >
+              🧺 ওয়াশ ও যত্ন
+            </button>
+            <button
+              className={`bw-p-tab-btn ${viewingProductTab === 'delivery' ? 'is-active' : ''}`}
+              onClick={() => setViewingProductTab('delivery')}
+            >
+              🚚 ডেলিভারি পলিসি
+            </button>
+          </div>
+
+          <div className="bw-p-tab-content">
+            {viewingProductTab === 'desc' && (
+              <div className="bw-tab-pane">
+                <h3>পণ্য সম্পর্কিত সম্পূর্ণ তথ্য</h3>
+                <p>
+                  {p.desc ||
+                    'বাচ্চার জন্য অত্যন্ত নরম ও আরামদায়ক ১০০% পিওর সুতি পোশাক। উন্নত মানের সুতা দ্বারা বোনা এবং সম্পূর্ণভাবে নিকেল-মুক্ত প্রেস বাটন যুক্ত।'}
+                </p>
+                <ul className="bw-bullet-list">
+                  <li>অতিরিক্ত নরম ও ব্রিদেবল ১০০% কম্বড কটন ফেব্রিক</li>
+                  <li>ডায়াপার পরিবর্তনের সুবিধার জন্য নিচে মসৃণ স্ন্যাপ বাটন</li>
+                  <li>শিশুর সংবেদনশীল ত্বকে ঘর্ষণ বা ফুসকুড়ি প্রতিরোধক ফ্ল্যাট সিমস</li>
+                  <li>বারবার ধোয়ার পরেও রঙের উজ্জ্বলতা ও মোলায়েম ভাব বজায় থাকে</li>
+                </ul>
+              </div>
+            )}
+
+            {viewingProductTab === 'specs' && (
+              <div className="bw-tab-pane">
+                <h3>ফেব্রিক ও কোয়ালিটি স্পেসিফিকেশন</h3>
+                <table className="bw-specs-table">
+                  <tbody>
+                    <tr>
+                      <td style={{ width: '35%' }}>ফেব্রিক উপাদান:</td>
+                      <td><b>{p.fabric || '১০০% কম্বড অর্গানিক কটন (220 GSM Interlock)'}</b></td>
+                    </tr>
+                    <tr>
+                      <td>নিরাপত্তা মানদণ্ড:</td>
+                      <td>নিকেল-মুক্ত স্ন্যাপ বাটন, লেড-মুক্ত নন-টক্সিক ডাইং</td>
+                    </tr>
+                    <tr>
+                      <td>উপযোগী ঋতু:</td>
+                      <td>অল-সিজন (গ্রীষ্ম, বর্ষা ও শীতের সময় আরামদায়ক)</td>
+                    </tr>
+                    <tr>
+                      <td>সিলাই ও ফিনিশিং:</td>
+                      <td>ডাবল স্টিচ ফ্ল্যাট-লক সিমস (বাচ্চার কোমল গায়ে দাগ বা চুলকানি হবে না)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {viewingProductTab === 'size' && (
+              <div className="bw-tab-pane">
+                <h3>শিশুর বয়স ও পরিমাপ নির্দেশিকা</h3>
+                <p style={{ color: '#64748B', marginBottom: 12 }}>
+                  আপনার বাবুর সঠিক মাপ জানতে নিচের পরিমাপ চার্টটি অনুসরণ করুন:
+                </p>
+                <table className="bw-specs-table">
+                  <thead>
+                    <tr>
+                      <th>সাইজ</th>
+                      <th>বয়স</th>
+                      <th>শিশুর উচ্চতা</th>
+                      <th>শিশুর ওজন</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>0-3M</td><td>০ - ৩ মাস</td><td>৫০ - ৬০ সেমি</td><td>৩ - ৫ কেজি</td></tr>
+                    <tr><td>3-6M</td><td>৩ - ৬ মাস</td><td>৬০ - ৬৮ সেমি</td><td>৫ - ৭.৫ কেজি</td></tr>
+                    <tr><td>6-12M</td><td>৬ - ১২ মাস</td><td>৬৮ - ৭৬ সেমি</td><td>৭.৫ - ১০ কেজি</td></tr>
+                    <tr><td>12-18M</td><td>১২ - ১৮ মাস</td><td>৭৬ - ৮৪ সেমি</td><td>১০ - ১২ কেজি</td></tr>
+                    <tr><td>18-24M</td><td>১৮ - ২৪ মাস</td><td>৮৪ - ৯০ সেমি</td><td>১২ - ১৪ কেজি</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {viewingProductTab === 'care' && (
+              <div className="bw-tab-pane">
+                <h3>ওয়াশ ও যত্ন নির্দেশিকা (Care Guide)</h3>
+                <ul className="bw-bullet-list">
+                  <li>প্রথমবার পরানোর পূর্বে হালকা কুসুম গরম পানিতে একবার ধুয়ে নেওয়া ভালো।</li>
+                  <li>মেশিন ওয়াশের ক্ষেত্রে মৃদু ডিটারজেন্ট দিয়ে ৩০°C তাপমাত্রায় ওয়াশ করুন।</li>
+                  <li>কখনোই কোনো ব্লিচ বা কড়া কেমিক্যাল ব্যবহার করবেন না।</li>
+                  <li>ছায়াযুক্ত স্থানে শুকাতে দিন এবং প্রয়োজনে মাঝারি তাপে আয়রন করুন।</li>
+                </ul>
+              </div>
+            )}
+
+            {viewingProductTab === 'delivery' && (
+              <div className="bw-tab-pane">
+                <h3>ডেলিভারি ও এক্সচেঞ্জ নিশ্চয়তা</h3>
+                <ul className="bw-bullet-list">
+                  <li><b>ঢাকার ভেতরে:</b> ডেলিভারি চার্জ ৳{storeSettings.deliveryInside}। ২৪ থেকে ৪৮ ঘণ্টার মধ্যে ডেলিভারি।</li>
+                  <li><b>ঢাকার বাইরে:</b> ডেলিভারি চার্জ ৳{storeSettings.deliveryOutside}। ২ থেকে ৩ কার্যদিবসের মধ্যে কুরিয়ারের মাধ্যমে হোম ডেলিভারি।</li>
+                  <li><b>ক্যাশ অন ডেলিভারি:</b> পার্সেল খুলে পোশাকের মান যাচাই করে মূল্য পরিশোধ করার সুবিধা।</li>
+                  <li><b>সহজ সাইজ এক্সচেঞ্জ:</b> সাইজ না মিললে বা কোনো অসঙ্গতি থাকলে ৭ দিনের মধ্যে আমাদের হটলাইনে কল করে সহজেই এক্সচেঞ্জ করা যাবে।</li>
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Product Reviews */}
+        <div className="bw-p-reviews-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: '#0F172A', margin: 0 }}>
+                কাস্টমারদের বাস্তব মতামত ও অভিজ্ঞতা
+              </h3>
+              <p style={{ color: '#64748B', fontSize: 13, margin: '4px 0 0' }}>
+                এই পোশাকটি ব্যবহারকারী অভিভাবকদের অনুমোদিত রিভিউ
+              </p>
+            </div>
+            <button
+              className="bw-btn bw-btn-pink"
+              onClick={() => {
+                setRevProductId(p.id);
+                setIsReviewModalOpen(true);
+              }}
+            >
+              ✍️ আপনার রিভিউ লিখুন
+            </button>
+          </div>
+
+          {prodReviews.length === 0 ? (
+            <div className="bw-empty-reviews">
+              এই পোশাকটিতে এখনো কোনো অনুমোদিত রিভিউ নেই। আপনিও অর্ডার শেষে আপনার বাবু কেমন আরাম পাচ্ছে তা শেয়ার করতে পারেন!
+            </div>
+          ) : (
+            <div className="bw-reviews-grid">
+              {prodReviews.map((r) => (
+                <div key={r.id} className="bw-review-card">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#0F172A' }}>{r.name}</div>
+                      <div style={{ fontSize: 11, color: '#64748B' }}>📍 {r.location || 'বাংলাদেশ'}</div>
+                    </div>
+                    <div style={{ color: '#F59E0B' }}>{'★'.repeat(r.rating || 5)}</div>
+                  </div>
+                  <p style={{ color: '#334155', fontSize: 13, lineHeight: 1.6 }}>"{r.text}"</p>
+                  {r.image && (
+                    <img
+                      src={r.image}
+                      alt="Customer baby photo"
+                      style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 10, marginTop: 10, border: '1px solid #E2E8F0' }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Related Products */}
+        <div className="bw-related-section">
+          <h3 style={{ fontSize: 20, fontWeight: 800, color: '#0F172A', marginBottom: 18 }}>
+            একই ক্যাটাগরির আরও আকর্ষণীয় কালেকশন
+          </h3>
+          <div className="bw-product-grid">
+            {products
+              .filter((item) => item.id !== p.id && catObj && isProductInCategory(item, catObj))
+              .slice(0, 4)
+              .map(renderProductCard)}
+          </div>
+        </div>
+      </main>
+    );
+  };
+
   // Product Card Renderer Component
   const renderProductCard = (p: Product) => {
     const szs = getProductSizes(p);
@@ -496,10 +926,7 @@ export function App() {
         {/* Media */}
         <div
           className="bw-card-media"
-          onClick={() => {
-            setQuickViewProduct(p);
-            setQuickViewActiveImg(cardImg);
-          }}
+          onClick={() => openProductDetail(p)}
         >
           {(p.badge || p.tag) && <span className="bw-card-badge">{p.badge || p.tag}</span>}
           {discountPct > 0 && <span className="bw-card-discount">-{discountPct}% OFF</span>}
@@ -519,10 +946,7 @@ export function App() {
           <h3
             className="bw-card-title"
             title={p.name}
-            onClick={() => {
-              setQuickViewProduct(p);
-              setQuickViewActiveImg(cardImg);
-            }}
+            onClick={() => openProductDetail(p)}
           >
             {p.name}
           </h3>
@@ -686,7 +1110,8 @@ export function App() {
             </a>
 
             <a href={whatsappLink} target="_blank" rel="noreferrer" className="bw-action-pill bw-action-wa">
-              💬 WhatsApp
+              <WhatsAppIcon size={16} variant="official" />
+              <span>WhatsApp</span>
             </a>
 
             <button
@@ -875,16 +1300,21 @@ export function App() {
                 target="_blank"
                 rel="noreferrer"
                 className="bw-btn"
-                style={{ width: '100%', padding: '10px', fontSize: 13, background: '#22C55E', color: '#FFF' }}
+                style={{ width: '100%', padding: '10px', fontSize: 13, background: '#25D366', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
-                💬 WhatsApp চ্যাট
+                <WhatsAppIcon size={18} variant="white" />
+                <span>WhatsApp চ্যাট</span>
               </a>
             </div>
           </div>
         </div>
       )}
 
-      {/* Hero Showcase Section */}
+      {viewingProduct ? (
+        renderSingleProductView()
+      ) : (
+        <>
+          {/* Hero Showcase Section */}
       <section className="bw-hero">
         <div className="bw-hero-card">
           <div>
@@ -949,71 +1379,91 @@ export function App() {
         </div>
       </section>
 
-      {/* Trust & Features Bar (Fixed Bengali line clipping) */}
-      <section className="bw-features-bar">
-        <div className="bw-feature-item">
-          <div className="bw-feature-icon">🌿</div>
-          <div className="bw-feature-content">
-            <div className="bw-feature-title">১০০% অর্গানিক কম্বড সুতি</div>
-            <div className="bw-feature-desc">নিকেল-ফ্রি স্ন্যাপ বাটন, ত্বক থাকবে র‍্যাশমুক্ত</div>
-          </div>
-        </div>
-
-        <div className="bw-feature-item bw-feature-pink">
-          <div className="bw-feature-icon">🚚</div>
-          <div className="bw-feature-content">
-            <div className="bw-feature-title">ক্যাশ অন ডেলিভারি</div>
-            <div className="bw-feature-desc">পণ্য হাতে পেয়ে চেক করে মূল্য পরিশোধের সুবিধা</div>
-          </div>
-        </div>
-
-        <div className="bw-feature-item">
-          <div className="bw-feature-icon">🔄</div>
-          <div className="bw-feature-content">
-            <div className="bw-feature-title">৭ দিনে সহজ সাইজ এক্সচেঞ্জ</div>
-            <div className="bw-feature-desc">সাইজ ছোট বা বড় হলে দ্রুত পরিবর্তন গ্যারান্টি</div>
-          </div>
-        </div>
-
-        <div className="bw-feature-item bw-feature-pink">
-          <div className="bw-feature-icon">💬</div>
-          <div className="bw-feature-content">
-            <div className="bw-feature-title">প্যারেন্টস হেল্পলাইন</div>
-            <div className="bw-feature-desc">হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ সেবা</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Category Stories Navigation */}
-      <section className="bw-category-stories">
-        <div className="bw-category-scroll">
-          <div
-            className={`bw-story-card ${activeCategory === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveCategory('all')}
-          >
-            <div className="bw-story-avatar">🌟</div>
-            <span className="bw-story-title">সব কালেকশন</span>
-          </div>
-
-          {categories.map((c) => {
-            const icon = getCatIcon(c.slug || c.id);
-            return (
-              <div
-                key={c.id}
-                className={`bw-story-card ${activeCategory === c.id ? 'active' : ''}`}
-                onClick={() => {
-                  setActiveCategory(c.id);
-                  const el = document.getElementById(`cat-${c.id}`);
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                <div className="bw-story-avatar">{icon}</div>
-                <span className="bw-story-title">{c.name.split('(')[0].trim()}</span>
+          {/* Trust & Features Bar */}
+          <section className="bw-features-bar">
+            <div className="bw-feature-item">
+              <div className="bw-feature-icon">
+                <LeafIcon size={24} color="#059669" />
               </div>
-            );
-          })}
-        </div>
-      </section>
+              <div className="bw-feature-content">
+                <div className="bw-feature-title">১০০% অর্গানিক কম্বড সুতি</div>
+                <div className="bw-feature-desc">নিকেল-ফ্রি স্ন্যাপ বাটন, ত্বক থাকবে র‍্যাশমুক্ত</div>
+              </div>
+            </div>
+
+            <div className="bw-feature-item bw-feature-pink">
+              <div className="bw-feature-icon">
+                <TruckIcon size={24} color="#0284C7" />
+              </div>
+              <div className="bw-feature-content">
+                <div className="bw-feature-title">ক্যাশ অন ডেলিভারি</div>
+                <div className="bw-feature-desc">পণ্য হাতে পেয়ে চেক করে মূল্য পরিশোধের সুবিধা</div>
+              </div>
+            </div>
+
+            <div className="bw-feature-item">
+              <div className="bw-feature-icon">
+                <ExchangeIcon size={24} color="#D97706" />
+              </div>
+              <div className="bw-feature-content">
+                <div className="bw-feature-title">৭ দিনে সহজ সাইজ এক্সচেঞ্জ</div>
+                <div className="bw-feature-desc">সাইজ ছোট বা বড় হলে দ্রুত পরিবর্তন গ্যারান্টি</div>
+              </div>
+            </div>
+
+            <div className="bw-feature-item bw-feature-pink">
+              <div className="bw-feature-icon">
+                <WhatsAppIcon size={24} variant="official" />
+              </div>
+              <div className="bw-feature-content">
+                <div className="bw-feature-title">প্যারেন্টস হেল্পলাইন</div>
+                <div className="bw-feature-desc">হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ সেবা</div>
+              </div>
+            </div>
+          </section>
+
+          {/* Category Showcase Section with 1080x1080 Square Images */}
+          <section className="bw-category-grid-section">
+            <div className="bw-cat-grid-header">
+              <h2 className="bw-section-title">
+                <span style={{ color: '#0284C7' }}>পছন্দের </span>
+                <span style={{ color: '#EC4899' }}>বেবি কালেকশন</span>
+              </h2>
+              <p className="bw-section-subtitle">
+                ১০৮০×১০৮০ স্কয়ার প্রিমিয়াম লুক সহ আপনার বাবুর বয়সের সাথে মানানসই ক্যাটাগরি বেছে নিন
+              </p>
+            </div>
+            <div className="bw-categories-showcase-grid">
+              {categories.map((c) => {
+                const pCount = products.filter((p) => isProductInCategory(p, c)).length;
+                return (
+                  <div
+                    key={c.id}
+                    className="bw-cat-square-card"
+                    onClick={() => {
+                      setActiveCategory(c.id);
+                      const el = document.getElementById(`cat-${c.id}`);
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  >
+                    <div className="bw-cat-img-wrapper">
+                      <img
+                        src={c.image || '/uploads/baby-wear-logo.png'}
+                        alt={c.name}
+                        className="bw-cat-square-img"
+                        loading="lazy"
+                      />
+                      <span className="bw-cat-count-pill">{pCount}টি আইটেম</span>
+                    </div>
+                    <div className="bw-cat-info">
+                      <h4 className="bw-cat-name">{c.name}</h4>
+                      {c.blurb && <p className="bw-cat-blurb">{c.blurb}</p>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
 
       {/* Catalog Title */}
       <section id="catalog" className="bw-cat-section">
@@ -1200,6 +1650,8 @@ export function App() {
           )}
         </div>
       </section>
+      </>
+    )}
 
       {/* Floating WhatsApp Button */}
       <div
@@ -1207,9 +1659,7 @@ export function App() {
         onClick={() => window.open(whatsappLink, '_blank')}
         title="Chat on WhatsApp"
       >
-        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
-          <path d="M12.031 2C6.494 2 2 6.494 2 12.031c0 1.956.564 3.782 1.54 5.336L2 22l4.786-1.503a9.98 9.98 0 0 0 5.245 1.488h.005c5.536 0 10.03-4.494 10.03-10.031C22.066 6.494 17.568 2 12.031 2zm5.834 14.195c-.244.686-1.22 1.258-1.745 1.336-.505.075-1.164.107-1.879-.122-1.928-.616-3.153-2.585-3.249-2.713-.095-.128-.781-1.042-.781-1.987 0-.946.495-1.411.671-1.603.176-.192.385-.24.514-.24.129 0 .258.002.371.008.119.006.278-.045.435.333.162.388.552 1.345.601 1.442.049.097.081.21.016.338-.065.129-.097.21-.193.322-.097.113-.203.253-.29.339-.097.097-.198.203-.085.397.113.194.502.828 1.077 1.341.741.661 1.365.866 1.559.963.194.097.307.081.42-.049.113-.129.484-.564.613-.758.129-.194.258-.161.435-.097.177.065 1.129.532 1.323.629.194.097.322.145.371.226.048.08.048.468-.196 1.154z" />
-        </svg>
+        <WhatsAppIcon size={32} variant="official" />
       </div>
 
       {/* Sticky Mobile Bottom Bar (Multi-Page Navigation on Phones) */}
@@ -1793,43 +2243,32 @@ export function App() {
                       onChange={(e) => setCustPhone(e.target.value)}
                     />
 
-                    {/* District & Thana Dropdowns */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                      <div>
-                        <label className="bw-form-label">জেলা নির্বাচন করুন *</label>
-                        <select
-                          className="bw-input"
-                          value={custDistrict}
-                          onChange={(e) => {
-                            const d = e.target.value;
-                            setCustDistrict(d);
-                            const thanas = BD_GEO[d] || [];
-                            setCustThana(thanas[0] || '');
-                            setDeliveryArea(d === 'Dhaka' ? 'inside' : 'outside');
-                          }}
-                        >
-                          {Object.keys(BD_GEO).map((d) => (
-                            <option key={d} value={d}>
-                              {d} {d === 'Dhaka' ? '(ঢাকা)' : ''}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                    {/* Searchable District & Thana Dropdowns */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <SearchableSelect
+                        label="জেলা নির্বাচন করুন"
+                        value={custDistrict}
+                        options={Object.keys(BD_GEO)}
+                        bilingualMap={BD_DISTRICTS_BN}
+                        placeholder="জেলা লিখুন বা সার্চ করুন..."
+                        required
+                        onChange={(d) => {
+                          setCustDistrict(d);
+                          const thanas = BD_GEO[d] || [];
+                          setCustThana(thanas[0] || '');
+                          setDeliveryArea(d === 'Dhaka' ? 'inside' : 'outside');
+                        }}
+                      />
 
-                      <div>
-                        <label className="bw-form-label">থানা / উপজেলা *</label>
-                        <select
-                          className="bw-input"
-                          value={custThana}
-                          onChange={(e) => setCustThana(e.target.value)}
-                        >
-                          {(BD_GEO[custDistrict] || []).map((th) => (
-                            <option key={th} value={th}>
-                              {th}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      <SearchableSelect
+                        label="থানা / উপজেলা"
+                        value={custThana}
+                        options={BD_GEO[custDistrict] || []}
+                        placeholder="থানা খুঁজুন..."
+                        required
+                        disabled={!custDistrict}
+                        onChange={(th) => setCustThana(th)}
+                      />
                     </div>
 
                     <label className="bw-form-label">বাসা নং, রোড নং ও বিস্তারিত ঠিকানা *</label>
@@ -2117,8 +2556,9 @@ export function App() {
                   {storeSettings.hotline}
                 </a>
               </div>
-              <div>
-                💬 হোয়াটসঅ্যাপ:{' '}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <WhatsAppIcon size={16} variant="official" />
+                <span>হোয়াটসঅ্যাপ:</span>{' '}
                 <a href={whatsappLink} target="_blank" rel="noreferrer" style={{ color: '#22C55E', textDecoration: 'none' }}>
                   {storeSettings.hotline}
                 </a>
@@ -2131,11 +2571,19 @@ export function App() {
 
         <div className="bw-footer-bottom">
           <div>© {new Date().getFullYear()} Baby Wear Bangladesh. সর্বস্বত্ব সংরক্ষিত।</div>
-          <div style={{ display: 'flex', gap: 16 }}>
-            <span style={{ color: '#64748B' }}>🔒 নিরাপদ পেমেন্ট ও ১০০% ক্যাশ অন ডেলিভারি</span>
-            <a href="/wp-admin" style={{ color: '#64748B', textDecoration: 'none', fontSize: 12 }}>
-              Admin Panel
-            </a>
+          <div className="bw-footer-dev-credits">
+            <div className="bw-dev-line">
+              Developed by{' '}
+              <a href="https://shakil.metrroma.com" target="_blank" rel="noopener noreferrer">
+                Shakil
+              </a>
+            </div>
+            <div className="bw-dev-line">
+              Powered by{' '}
+              <a href="https://metrroma.com" target="_blank" rel="noopener noreferrer">
+                MetroMa
+              </a>
+            </div>
           </div>
         </div>
       </footer>

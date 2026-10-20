@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/admin.tsx","./src/api.ts","./src/bd-geo.ts","./src/icons.tsx","./src/main.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/searchableselect.tsx","./src/admin.tsx","./src/api.ts","./src/bd-geo.ts","./src/icons.tsx","./src/main.tsx"],"version":"5.9.3"}

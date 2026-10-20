@@ -912,6 +912,7 @@ export function Admin() {
           {item('landings', <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="ci"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>, 'Landing Pages')}
           {item('media', I.media, 'Media')}
           {item('coupons', I.coupons, 'Coupons')}
+          {item('reviews', <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="ci"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="12" y1="7" x2="12" y2="13"/></svg>, 'Customer Reviews')}
           {item('fraud', <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="ci"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>, 'Fraud Detector')}
           {item('staff', I.customers, 'Staff')}
           {item('integrations', I.integrations, 'Integrations')}
@@ -937,6 +938,7 @@ export function Admin() {
         {cur === 'landings' && <LandingsAdmin />}
         {cur === 'media' && <MediaAdmin />}
         {cur === 'coupons' && <CouponsAdmin />}
+        {cur === 'reviews' && <ReviewsAdmin />}
         {cur === 'fraud' && <FraudDetectorAdmin />}
         {cur === 'staff' && <StaffAdmin />}
         {cur === 'integrations' && <IntegrationsAdmin />}
@@ -13595,5 +13597,264 @@ function StaffAdmin() {
         </div>
       )}
     </>
+  );
+}
+
+function ReviewsAdmin() {
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [search, setSearch] = useState('');
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await aFetch('/admin/reviews');
+      const data = await res.json();
+      setReviews(data.reviews || []);
+    } catch (e) {
+      console.warn('Failed to fetch reviews', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const handleApprove = async (r: any) => {
+    setActionBusy(r.id);
+    try {
+      const res = await aFetch(`/admin/reviews/${r.productId || 'general'}/${r.id}/approve`, { method: 'PUT' });
+      if (res.ok) {
+        setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, approved: true } : x)));
+      }
+    } catch {}
+    setActionBusy(null);
+  };
+
+  const handleReject = async (r: any) => {
+    setActionBusy(r.id);
+    try {
+      const res = await aFetch(`/admin/reviews/${r.productId || 'general'}/${r.id}/reject`, { method: 'PUT' });
+      if (res.ok) {
+        setReviews((prev) => prev.map((x) => (x.id === r.id ? { ...x, approved: false } : x)));
+      }
+    } catch {}
+    setActionBusy(null);
+  };
+
+  const handleDelete = async (r: any) => {
+    if (!confirm(`Are you sure you want to delete the review by "${r.name}"?`)) return;
+    setActionBusy(r.id);
+    try {
+      const res = await aFetch(`/admin/reviews/${r.productId || 'general'}/${r.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setReviews((prev) => prev.filter((x) => x.id !== r.id));
+      }
+    } catch {}
+    setActionBusy(null);
+  };
+
+  const filtered = useMemo(() => {
+    return reviews.filter((r) => {
+      if (filter === 'pending' && r.approved) return false;
+      if (filter === 'approved' && !r.approved) return false;
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const n = (r.name || '').toLowerCase();
+        const t = (r.text || '').toLowerCase();
+        const p = (r.productName || '').toLowerCase();
+        if (!n.includes(q) && !t.includes(q) && !p.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [reviews, filter, search]);
+
+  const pendingCount = reviews.filter((r) => !r.approved).length;
+
+  return (
+    <div className="sa-card" style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: '#f8fafc' }}>
+            কাস্টমার রিভিউ ম্যানেজমেন্ট (Customer Reviews)
+          </h2>
+          <p style={{ margin: '4px 0 0', color: '#94a3b8', fontSize: 13 }}>
+            কাস্টমারদের জমা দেওয়া রিভিউ পর্যালোচনা এবং ওয়েবসাইটে প্রকাশের অনুমোদন দিন
+          </p>
+        </div>
+        <button className="sa-btn" onClick={load} disabled={loading} style={{ fontSize: 13, padding: '8px 16px' }}>
+          🔄 রিফ্রেশ
+        </button>
+      </div>
+
+      {/* Stats bar */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 20 }}>
+        <div style={{ background: '#1e1b34', border: '1px solid #332d56', borderRadius: 12, padding: 14 }}>
+          <div style={{ color: '#94a3b8', fontSize: 12 }}>মোট রিভিউ</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#f8fafc', marginTop: 4 }}>{reviews.length}</div>
+        </div>
+        <div style={{ background: '#1e1b34', border: '1px solid #f59e0b44', borderRadius: 12, padding: 14 }}>
+          <div style={{ color: '#fbbf24', fontSize: 12 }}>অপেক্ষমাণ রিভিউ (Pending)</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#fbbf24', marginTop: 4 }}>{pendingCount}</div>
+        </div>
+        <div style={{ background: '#1e1b34', border: '1px solid #10b98144', borderRadius: 12, padding: 14 }}>
+          <div style={{ color: '#34d399', fontSize: 12 }}>অনুমোদিত রিভিউ (Approved)</div>
+          <div style={{ fontSize: 24, fontWeight: 700, color: '#34d399', marginTop: 4 }}>{reviews.filter((r) => r.approved).length}</div>
+        </div>
+      </div>
+
+      {/* Filter / Search Bar */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input
+          type="text"
+          placeholder="কাস্টমার নাম, পণ্য বা কমেন্ট খুঁজুন..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 220, background: '#18152b', border: '1px solid #332d56', borderRadius: 8, padding: '8px 14px', color: '#f8fafc', fontSize: 13 }}
+        />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className={`sa-btn ${filter === 'all' ? 'active' : ''}`}
+            onClick={() => setFilter('all')}
+            style={{ fontSize: 12, background: filter === 'all' ? '#7c3aed' : '#1e1b34', borderColor: filter === 'all' ? '#7c3aed' : '#332d56' }}
+          >
+            সব ({reviews.length})
+          </button>
+          <button
+            className={`sa-btn ${filter === 'pending' ? 'active' : ''}`}
+            onClick={() => setFilter('pending')}
+            style={{ fontSize: 12, background: filter === 'pending' ? '#d97706' : '#1e1b34', borderColor: filter === 'pending' ? '#d97706' : '#332d56' }}
+          >
+            অপেক্ষমাণ ({pendingCount})
+          </button>
+          <button
+            className={`sa-btn ${filter === 'approved' ? 'active' : ''}`}
+            onClick={() => setFilter('approved')}
+            style={{ fontSize: 12, background: filter === 'approved' ? '#059669' : '#1e1b34', borderColor: filter === 'approved' ? '#059669' : '#332d56' }}
+          >
+            অনুমোদিত ({reviews.filter((r) => r.approved).length})
+          </button>
+        </div>
+      </div>
+
+      {/* Reviews Table */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>রিভিউ লোড হচ্ছে...</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', background: '#18152b', borderRadius: 12, border: '1px dashed #332d56' }}>
+          কোনো রিভিউ পাওয়া যায়নি
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {filtered.map((r) => (
+            <div
+              key={r.id}
+              style={{
+                background: '#18152b',
+                border: r.approved ? '1px solid #10b98144' : '1px solid #f59e0b66',
+                borderRadius: 12,
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: '50%', background: '#3b2d54', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#e2e8f0', fontSize: 16 }}>
+                    {(r.name || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: 14 }}>
+                      {r.name}{' '}
+                      <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 400 }}>📍 {r.location || 'বাংলাদেশ'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
+                      <span style={{ color: '#f59e0b', fontSize: 13 }}>{'★'.repeat(r.rating || 5)}{'☆'.repeat(5 - (r.rating || 5))}</span>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>{new Date(r.at || Date.now()).toLocaleDateString('bn-BD')}</span>
+                      {r.productName && (
+                        <span style={{ fontSize: 11, background: '#252044', color: '#c4b5fd', padding: '2px 8px', borderRadius: 6 }}>
+                          🛍️ {r.productName}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      background: r.approved ? '#064e3b' : '#78350f',
+                      color: r.approved ? '#34d399' : '#fcd34d',
+                      border: r.approved ? '1px solid #059669' : '1px solid #d97706',
+                    }}
+                  >
+                    {r.approved ? '✅ অনুমোদিত (Live)' : '⏳ অপেক্ষমাণ (Pending)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Comment text */}
+              <div style={{ color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, background: '#1e1b34', padding: '12px 14px', borderRadius: 8 }}>
+                "{r.text}"
+              </div>
+
+              {/* Photo if attached */}
+              {r.image && (
+                <div style={{ marginTop: 2 }}>
+                  <span style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6 }}>সংযুক্ত শিশুর ছবি:</span>
+                  <a href={r.image} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={r.image}
+                      alt="Review baby photo"
+                      style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, border: '1px solid #475569' }}
+                    />
+                  </a>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 4 }}>
+                {!r.approved ? (
+                  <button
+                    className="sa-btn"
+                    onClick={() => handleApprove(r)}
+                    disabled={actionBusy === r.id}
+                    style={{ background: '#059669', borderColor: '#059669', color: '#fff', fontSize: 12, padding: '6px 14px' }}
+                  >
+                    ✅ অনুমোদন করুন (Approve)
+                  </button>
+                ) : (
+                  <button
+                    className="sa-btn"
+                    onClick={() => handleReject(r)}
+                    disabled={actionBusy === r.id}
+                    style={{ background: '#d97706', borderColor: '#d97706', color: '#fff', fontSize: 12, padding: '6px 14px' }}
+                  >
+                    ↩️ বাতিল করুন (Reject)
+                  </button>
+                )}
+                <button
+                  className="sa-btn"
+                  onClick={() => handleDelete(r)}
+                  disabled={actionBusy === r.id}
+                  style={{ background: '#dc2626', borderColor: '#dc2626', color: '#fff', fontSize: 12, padding: '6px 14px' }}
+                >
+                  🗑️ মুছে ফেলুন
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
