@@ -1,0 +1,27 @@
+{
+  "p1": [
+    {
+      "id": "43ee93a3",
+      "name": "Shakil",
+      "rating": 5,
+      "text": "Thais Is good product",
+      "at": "2026-10-11T15:16:51.959Z"
+    },
+    {
+      "id": "35017157",
+      "name": "Nabila",
+      "rating": 5,
+      "text": "gentle and lovely",
+      "at": "2026-10-10T12:26:34.778Z"
+    }
+  ],
+  "pmv7bramh": [
+    {
+      "id": "dd851efd",
+      "name": "চট্টগ্রাম থ্রিরি বোর্ড",
+      "rating": 5,
+      "text": "চট্টগ্রাম ত্রিবোর্ড",
+      "at": "2026-10-14T10:34:47.363Z"
+    }
+  ]
+}

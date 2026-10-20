@@ -1,0 +1,53 @@
+{
+  "storeName": "Baby Wear",
+  "announce": "👶 ১০০% অর্গানিক নরম সুতি ফেব্রিক · সারাদেশে দ্রুত ক্যাশ অন ডেলিভারি · ফ্রি ডেলিভারি ৳২০০০+ অর্ডারে",
+  "deliveryInside": 70,
+  "deliveryOutside": 130,
+  "freeShipThreshold": 2000,
+  "lowStockAt": 5,
+  "whatsapp": "01700000000",
+  "phone": "01700000000",
+  "gtmId": "",
+  "fbPixelId": "",
+  "logo": "/uploads/baby-wear-logo.png",
+  "favicon": "/uploads/baby-wear-logo.png",
+  "sliders": [
+    {
+      "id": "slide_bw_1",
+      "image": "https://images.unsplash.com/photo-1522771930-78848d9293e8?auto=format&fit=crop&w=1600&q=80",
+      "mobileImage": "",
+      "badge": "🧸 প্রিমিয়াম বেবি ফ্যাশন",
+      "title": "আপনার সোনামণির জন্য সবচেয়ে নরম ও আরামদায়ক পোশাক",
+      "subtitle": "১০০% প্রিমিয়াম সুতি কাপড়ে তৈরি, যা বাচ্চার সংবেদনশীল ত্বকের জন্য শতভাগ নিরাপদ ও আরামদায়ক",
+      "btnText": "👶 কালেকশন দেখুন",
+      "btnLink": "shop",
+      "active": true
+    },
+    {
+      "id": "slide_bw_2",
+      "image": "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=1600&q=80",
+      "mobileImage": "",
+      "badge": "🎀 স্পেশাল নিউবর্ন গিফট বক্স",
+      "title": "নতুন অতিথির জন্য পারফেক্ট বেবি ওয়েলকাম গিফট সেট",
+      "subtitle": "সুন্দর প্যাকেজিং ও আকর্ষণীয় উপহার বক্স সহ সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা",
+      "btnText": "🎁 গিফট সেট দেখুন",
+      "btnLink": "shop",
+      "active": true
+    }
+  ],
+  "fraudDetector": {
+    "enabled": true,
+    "cooldownHours": 24,
+    "maxOrdersPerDay": 5,
+    "minSecondsBetweenOrders": 30,
+    "blockByPhone": true,
+    "sameProductNotice": "You have already placed an order for this item recently. Please wait before ordering again, or contact our support team.",
+    "maxOrdersNotice": "You have reached the maximum daily order limit from this device. Please contact customer support for urgent orders.",
+    "rapidOrderNotice": "Please wait a moment before submitting another order."
+  },
+  "ownerPassword": {
+    "salt": "dc4eec36025b6745",
+    "hash": "dfed4e2a8d195bca01508e2b2a0c0e3244391c3e67390dcd7930e1c1e6b3b421",
+    "updatedAt": "2026-10-20T10:00:00.000Z"
+  }
+}
