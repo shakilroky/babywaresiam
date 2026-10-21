@@ -75,6 +75,8 @@ app.use((err, req, res, next) => {
 const UPLOADS = join(__dir, 'uploads');
 const PERSISTENT_UPLOADS = join(__dir, 'data', 'persistent_uploads');
 const ROOT_UPLOADS = join(__dir, '..', 'uploads');
+const PRIVATE_APK_DIR = join(__dir, 'data', 'private_apk');
+if (!existsSync(PRIVATE_APK_DIR)) mkdirSync(PRIVATE_APK_DIR, { recursive: true });
 if (!existsSync(UPLOADS)) mkdirSync(UPLOADS, { recursive: true });
 if (!existsSync(PERSISTENT_UPLOADS)) mkdirSync(PERSISTENT_UPLOADS, { recursive: true });
 if (!existsSync(ROOT_UPLOADS)) mkdirSync(ROOT_UPLOADS, { recursive: true });
@@ -387,8 +389,46 @@ app.put('/api/settings', adminAuth, requireRole('owner', 'manager'), (req, res) 
     logo: typeof b.logo === 'string' ? b.logo.trim() : (cur.logo || ''),
     favicon: typeof b.favicon === 'string' ? b.favicon.trim() : (cur.favicon || ''),
     sliders: Array.isArray(b.sliders) ? b.sliders : (cur.sliders || []),
+    homepageSections: Array.isArray(b.homepageSections) ? b.homepageSections.slice(0, 30).map((section) => ({
+      id: String(section?.id || '').slice(0, 80),
+      title: String(section?.title || '').trim().slice(0, 100),
+      category: String(section?.category || '').trim().slice(0, 100),
+      active: section?.active !== false,
+      count: Math.max(1, Math.min(40, parseInt(section?.count, 10) || 8)),
+      productIds: Array.isArray(section?.productIds) ? [...new Set(section.productIds.map(String))].slice(0, 100) : [],
+    })) : (cur.homepageSections || []),
+    homeContent: b.homeContent && typeof b.homeContent === 'object' && !Array.isArray(b.homeContent) ? b.homeContent : (cur.homeContent || {}),
+    siteContent: b.siteContent && typeof b.siteContent === 'object' && !Array.isArray(b.siteContent) ? b.siteContent : (cur.siteContent || {}),
+    appearance: b.appearance && typeof b.appearance === 'object' && !Array.isArray(b.appearance) ? {
+      accent: /^#[0-9a-f]{6}$/i.test(String(b.appearance.accent || '')) ? b.appearance.accent : (cur.appearance?.accent || '#ec4899'),
+      desktopColumns: [2, 3, 4].includes(Number(b.appearance.desktopColumns)) ? Number(b.appearance.desktopColumns) : (cur.appearance?.desktopColumns || 4),
+      mobileColumns: [1, 2].includes(Number(b.appearance.mobileColumns)) ? Number(b.appearance.mobileColumns) : (cur.appearance?.mobileColumns || 2),
+      imageFit: ['contain', 'cover'].includes(b.appearance.imageFit) ? b.appearance.imageFit : (cur.appearance?.imageFit || 'cover'),
+    } : (cur.appearance || {}),
+    apkName: typeof b.apkName === 'string' ? b.apkName.trim().slice(0, 60) : (cur.apkName || 'Baby Wear Admin'),
+    apkVersion: typeof b.apkVersion === 'string' ? b.apkVersion.trim().slice(0, 30) : (cur.apkVersion || ''),
     fraudDetector,
   }));
+});
+
+app.post('/api/app-apk', adminAuth, requireRole('owner', 'manager'), express.raw({ type: ['application/vnd.android.package-archive', 'application/octet-stream'], limit: '50mb' }), (req, res) => {
+  if (!Buffer.isBuffer(req.body) || req.body.length < 8 || req.body.length > 50 * 1024 * 1024) return res.status(400).json({ error: 'APK file is empty or too large.' });
+  const filename = String(req.query.filename || 'Baby-Wear-Admin.apk').replace(/[^a-zA-Z0-9._-]/g, '-').slice(-100);
+  if (!filename.toLowerCase().endsWith('.apk')) return res.status(400).json({ error: 'Please upload an .apk file.' });
+  const savedName = `admin-${Date.now()}-${filename}`;
+  writeFileSync(join(PRIVATE_APK_DIR, savedName), req.body, { mode: 0o600 });
+  const version = String(req.query.version || '').trim().slice(0, 30);
+  const settings = saveSettings({ apkStorageName: savedName, apkVersion: version || getSettings().apkVersion || '' });
+  res.json({ ok: true, name: filename, version: settings.apkVersion });
+});
+app.get('/api/admin/app-apk/download', adminAuth, requireRole('owner', 'manager'), (req, res) => {
+  const savedName = String(getSettings().apkStorageName || '');
+  if (!savedName || savedName.includes('..') || savedName.includes('/') || savedName.includes('\\')) return res.status(404).json({ error: 'No private admin APK has been uploaded.' });
+  const file = join(PRIVATE_APK_DIR, savedName);
+  if (!existsSync(file)) return res.status(404).json({ error: 'The saved APK file is missing.' });
+  res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+  res.setHeader('Content-Disposition', `attachment; filename="${savedName.replace(/"/g, '')}"`);
+  res.sendFile(file);
 });
 
 app.get('/api/products', (req, res) => {

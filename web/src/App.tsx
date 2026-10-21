@@ -96,7 +96,16 @@ export function App() {
     freeShipThreshold: 2000,
     deliveryInside: 70,
     deliveryOutside: 130,
+    homepageSections: [],
+    homeContent: {},
+    siteContent: { sections: {} },
+    appearance: { accent: '#ec4899', desktopColumns: 4, mobileColumns: 2, imageFit: 'cover' },
   });
+  const showSection = (key: string) => storeSettings.siteContent?.sections?.[key] !== false;
+  const homeCopy = (key: string, fallback: string) => storeSettings.homeContent?.[key] || fallback;
+  const configuredHomeSections = useMemo(() => Array.isArray(storeSettings.homepageSections) && storeSettings.homepageSections.length
+    ? storeSettings.homepageSections.filter((section: any) => section.active !== false)
+    : categories.map((category) => ({ id: category.id, category: category.id, title: category.name, count: 40, active: true })), [storeSettings.homepageSections, categories]);
   const heroSlides = useMemo(
     () => (Array.isArray(storeSettings.sliders) ? storeSettings.sliders : []).filter((slide: any) => slide?.active !== false && (slide?.image || slide?.mobileImage)),
     [storeSettings.sliders],
@@ -226,12 +235,17 @@ export function App() {
 
         if (setRes && typeof setRes === 'object' && !Array.isArray(setRes)) {
           setStoreSettings({
+            ...setRes,
             storeName: setRes.storeName || 'Baby Wear',
             hotline: setRes.phone ?? '',
             whatsapp: setRes.whatsapp ?? '',
             announce: setRes.announce || '👶 নরম সুতি পোশাক · সারাদেশে ক্যাশ অন ডেলিভারি',
             logo: setRes.logo || '/uploads/baby-wear-logo.png',
             sliders: Array.isArray(setRes.sliders) ? setRes.sliders : [],
+            homepageSections: Array.isArray(setRes.homepageSections) ? setRes.homepageSections : [],
+            homeContent: setRes.homeContent || {},
+            siteContent: setRes.siteContent || { sections: {} },
+            appearance: setRes.appearance || { accent: '#ec4899', desktopColumns: 4, mobileColumns: 2, imageFit: 'cover' },
             freeShipThreshold: setRes.freeShipThreshold ?? 2000,
             deliveryInside: setRes.deliveryInside ?? 70,
             deliveryOutside: setRes.deliveryOutside ?? 130,
@@ -1041,7 +1055,7 @@ export function App() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', ['--bw-accent' as any]: storeSettings.appearance?.accent || '#ec4899', ['--bw-cols-desktop' as any]: storeSettings.appearance?.desktopColumns || 4, ['--bw-cols-mobile' as any]: storeSettings.appearance?.mobileColumns || 2, ['--bw-image-fit' as any]: storeSettings.appearance?.imageFit || 'cover' }}>
       {/* Toast Notification */}
       {toast && (
         <div
@@ -1342,17 +1356,17 @@ export function App() {
           {/* Hero Showcase Section */}
       {(() => {
         const heroSlide = heroSlides.length ? heroSlides[activeHeroSlide % heroSlides.length] : null;
-        return <section className="bw-hero">
+        return showSection('hero') && <section className="bw-hero">
         <div className="bw-hero-card">
           <div>
             <div className="bw-hero-pill">
               {heroSlide?.badge || '🧸 আপনার সোনামণির কোমল ত্বকের জন্য সেরা পছন্দ'}
             </div>
             <h1 className="bw-hero-title">
-              {heroSlide?.title || <>সবচেয়ে নরম ও আরামদায়ক <br /><span>বেবি পোশাকের রাজকীয় কালেকশন</span></>}
+              {heroSlide?.title || homeCopy('heroTitle', 'সবচেয়ে নরম ও আরামদায়ক বেবি পোশাকের রাজকীয় কালেকশন')}
             </h1>
             <p className="bw-hero-desc">
-              {heroSlide?.subtitle || 'নরম ও শ্বাস-প্রশ্বাস চলাচল করে এমন সুতি কাপড়ে তৈরি পোশাক—আপনার সোনামণির প্রতিদিনের আরামের জন্য।'}
+              {heroSlide?.subtitle || homeCopy('heroDescription', 'নরম ও শ্বাস-প্রশ্বাস চলাচল করে এমন সুতি কাপড়ে তৈরি পোশাক—আপনার সোনামণির প্রতিদিনের আরামের জন্য।')}
             </p>
 
             <div className="bw-hero-cta-group">
@@ -1421,7 +1435,7 @@ export function App() {
       })()}
 
           {/* Trust & Features Bar */}
-          <section className="bw-features-bar">
+          {showSection('benefits') && <section className="bw-features-bar">
             <div className="bw-feature-item">
               <div className="bw-feature-icon">
                 <LeafIcon size={24} color="#059669" />
@@ -1461,14 +1475,13 @@ export function App() {
                 <div className="bw-feature-desc">হোয়াটসঅ্যাপ বা কলে তাৎক্ষণিক পরামর্শ সেবা</div>
               </div>
             </div>
-          </section>
+          </section>}
 
           {/* Category Showcase Section with 1080x1080 Square Images */}
-          <section className="bw-category-grid-section">
+          {showSection('categories') && <section className="bw-category-grid-section">
             <div className="bw-cat-grid-header">
               <h2 className="bw-section-title">
-                <span>পছন্দের </span>
-                <span>বেবি কালেকশন</span>
+                <span>{homeCopy('categoriesTitle', 'পছন্দের বেবি কালেকশন')}</span>
               </h2>
               <p className="bw-section-subtitle">
                 ১০৮০×১০৮০ স্কয়ার প্রিমিয়াম লুক সহ আপনার বাবুর বয়সের সাথে মানানসই ক্যাটাগরি বেছে নিন
@@ -1504,23 +1517,22 @@ export function App() {
                 );
               })}
             </div>
-          </section>
+          </section>}
 
       {/* Catalog Title */}
-      <section id="catalog" className="bw-cat-section">
+      {showSection('catalog') && <section id="catalog" className="bw-cat-section">
         <div className="bw-section-header">
           <h2 className="bw-section-title">
-            <span style={{ color: '#0284C7' }}>আমাদের স্পেশাল </span>
-            <span style={{ color: '#EC4899' }}>বেবি ওয়্যার কালেকশন</span>
+            <span style={{ color: 'var(--bw-accent)' }}>{homeCopy('catalogTitle', 'আমাদের স্পেশাল বেবি ওয়্যার কালেকশন')}</span>
           </h2>
           <p className="bw-section-subtitle">
-            বয়স, সাইজ ও ফেব্রিক অনুযায়ী সাজানো আমাদের প্রতিটি ক্যাটাগরি এক্সপ্লোর করুন
+            {homeCopy('catalogDescription', 'বয়স, সাইজ ও ফেব্রিক অনুযায়ী সাজানো আমাদের প্রতিটি ক্যাটাগরি এক্সপ্লোর করুন')}
           </p>
         </div>
-      </section>
+      </section>}
 
       {/* HOMEPAGE ORGANIZED CATEGORY-BY-CATEGORY */}
-      {loading ? (
+      {showSection('catalog') && (loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', fontSize: 18, color: '#64748B' }}>
           👶 লোড হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন
         </div>
@@ -1582,19 +1594,21 @@ export function App() {
       ) : (
         /* Default: Categorized Homepage Shelf Display */
         <div>
-          {categories.map((cat) => {
+          {configuredHomeSections.map((config: any, sectionIndex: number) => {
+            const cat = categories.find((item) => item.id === config.category || item.slug === config.category);
+            if (!cat) return null;
             const catProds = products.filter((p) => isProductInCategory(p, cat));
             if (catProds.length === 0) return null;
             const catIcon = getCatIcon(cat.slug || cat.id);
 
             return (
-              <section key={cat.id} id={`cat-${cat.id}`} className="bw-cat-block">
+              <section key={config.id || `${cat.id}-${sectionIndex}`} id={`cat-${cat.id}`} className="bw-cat-block">
                 <div className="bw-cat-block-header">
                   <div className="bw-cat-block-title-box">
                     <div className="bw-cat-block-icon">{catIcon}</div>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <h3 className="bw-cat-block-title">{cat.name}</h3>
+                        <h3 className="bw-cat-block-title">{config.title || cat.name}</h3>
                         <span className="bw-cat-block-badge">{catProds.length} টি পণ্য</span>
                       </div>
                       <p className="bw-cat-block-subtitle">
@@ -1612,21 +1626,20 @@ export function App() {
                 </div>
 
                 <div className="bw-product-grid" style={{ padding: 0 }}>
-                  {catProds.map(renderProductCard)}
+                  {catProds.slice(0, Math.max(1, Number(config.count) || 40)).map(renderProductCard)}
                 </div>
               </section>
             );
           })}
         </div>
-      )}
+      ))}
 
       {/* REAL PARENT FEEDBACK & UPLOAD SECTION */}
-      <section id="reviews-section" className="bw-reviews-container">
+      {showSection('reviews') && <section id="reviews-section" className="bw-reviews-container">
         <div className="bw-reviews-header-row">
           <div>
             <h2 className="bw-section-title" style={{ textAlign: 'left', marginBottom: 4 }}>
-              <span style={{ color: '#EC4899' }}>রিয়েল প্যারেন্টস </span>
-              <span style={{ color: '#0284C7' }}>ফিডব্যাক ও অভিজ্ঞতা</span>
+              <span style={{ color: '#EC4899' }}>{homeCopy('reviewsTitle', 'রিয়েল প্যারেন্টস ফিডব্যাক ও অভিজ্ঞতা')}</span>
             </h2>
             <p className="bw-section-subtitle" style={{ textAlign: 'left' }}>
               আমাদের গ্রাহকদের আসল অভিজ্ঞতা ও ছবি · রেটিং: <b>⭐ {reviews.length ? `${reviewsAvg.toFixed(1)}/৫` : 'এখনো রিভিউ নেই'}</b> ({reviews.length}টি রিভিউ)
@@ -1695,7 +1708,7 @@ export function App() {
             ))
           )}
         </div>
-      </section>
+      </section>}
       </>
     )}
 
@@ -2530,7 +2543,7 @@ export function App() {
       )}
 
       {/* Footer */}
-      <footer className="bw-footer">
+      {showSection('footer') && <footer className="bw-footer">
         <div className="bw-footer-inner">
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
@@ -2633,7 +2646,7 @@ export function App() {
             </div>
           </div>
         </div>
-      </footer>
+      </footer>}
     </div>
   );
 }

@@ -7171,7 +7171,9 @@ function SettingsAdmin() {
   const [settingsError, setSettingsError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [tab, setTab] = useState<'brand' | 'slider' | 'store' | 'fraud'>('brand');
+  const [tab, setTab] = useState<'brand' | 'slider' | 'home' | 'app' | 'store' | 'fraud' | 'appearance' | 'content' | 'frontend'>('brand');
+  const [storeCategories, setStoreCategories] = useState<any[]>([]);
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
   const [showSlideModal, setShowSlideModal] = useState(false);
@@ -7187,6 +7189,7 @@ function SettingsAdmin() {
     active: true,
   });
   const [uploadingSlideImg, setUploadingSlideImg] = useState(false);
+  const [uploadingApk, setUploadingApk] = useState(false);
   const [editingSlideIdx, setEditingSlideIdx] = useState<number | null>(null);
   const [pickerTarget, setPickerTarget] = useState<{ title: string; currentImg: string; onSelect: (url: string) => void } | null>(null);
 
@@ -7203,7 +7206,13 @@ function SettingsAdmin() {
         logo: s.logo || '',
         favicon: s.favicon || '',
         sliders: Array.isArray(s.sliders) ? s.sliders : [],
+        homepageSections: Array.isArray(s.homepageSections) ? s.homepageSections : [],
+        homeContent: s.homeContent || {},
+        siteContent: s.siteContent || { sections: {} },
+        appearance: s.appearance || { accent: '#ec4899', desktopColumns: 4, mobileColumns: 2, imageFit: 'cover' },
       });
+      fetch('/api/categories').then((r) => r.ok ? r.json() : []).then((items) => setStoreCategories(Array.isArray(items) ? items : [])).catch(() => {});
+      fetch('/api/products').then((r) => r.ok ? r.json() : []).then((items) => setAvailableProducts(Array.isArray(items) ? items : [])).catch(() => {});
     } catch (error: any) {
       setSettingsError(error?.message || 'Could not load store settings.');
     } finally {
@@ -7279,6 +7288,39 @@ function SettingsAdmin() {
   };
 
   const sliders: any[] = Array.isArray(f?.sliders) ? f.sliders : [];
+  const homepageSections: any[] = Array.isArray(f?.homepageSections) ? f.homepageSections : [];
+  const sectionControls = [
+    ['hero', 'Hero banner / slider'], ['benefits', 'Store benefits'], ['categories', 'Featured categories'],
+    ['catalog', 'Product collections'], ['reviews', 'Customer reviews'], ['footer', 'Store footer'],
+  ];
+  const homeTextFields = [
+    ['heroTitle', 'Hero heading'], ['heroDescription', 'Hero description'], ['categoriesTitle', 'Category heading'],
+    ['catalogTitle', 'Product collection heading'], ['catalogDescription', 'Product collection description'], ['reviewsTitle', 'Reviews heading'],
+  ];
+  const setHomeText = (key: string, value: string) => setF((s: any) => ({ ...s, homeContent: { ...(s.homeContent || {}), [key]: value } }));
+  const setSiteSection = (key: string, value: boolean) => setF((s: any) => ({ ...s, siteContent: { ...(s.siteContent || {}), sections: { ...(s.siteContent?.sections || {}), [key]: value } } }));
+  const uploadAdminApk = async (file?: File) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.apk') || file.size > 50 * 1024 * 1024) { alert('Choose an APK file up to 50 MB.'); return; }
+    setUploadingApk(true);
+    try {
+      const params = new URLSearchParams({ filename: file.name, version: f.apkVersion || '' });
+      const response = await fetch(`/api/app-apk?${params}`, { method: 'POST', headers: { 'x-admin-token': getTok(), 'Content-Type': 'application/vnd.android.package-archive' }, body: file });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'APK upload failed');
+      setF((s: any) => ({ ...s, apkVersion: result.version, apkStorageName: result.name }));
+      alert('Private admin APK uploaded successfully. It is not linked on the customer website.');
+    } catch (error: any) { alert(error.message || 'APK upload failed'); }
+    finally { setUploadingApk(false); }
+  };
+  const downloadAdminApk = async () => {
+    try {
+      const response = await aFetch('/admin/app-apk/download');
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'APK download failed');
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a'); link.href = url; link.download = 'Baby-Wear-Admin.apk'; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+    } catch (error: any) { alert(error.message || 'APK download failed'); }
+  };
 
   const moveSlide = (idx: number, dir: -1 | 1) => {
     const target = idx + dir;
@@ -7374,12 +7416,17 @@ function SettingsAdmin() {
             <span>🎠 Homepage Sliders & Banners</span>
             <span className="sa-filter-count">{sliders.length}</span>
           </button>
+          <button className={tab === 'home' ? 'on' : ''} onClick={() => setTab('home')}><span>🧩 Homepage Sections</span><span className="sa-filter-count">{homepageSections.length}</span></button>
+          <button className={tab === 'app' ? 'on' : ''} onClick={() => setTab('app')}><span>📱 Android App / APK</span></button>
           <button className={tab === 'store' ? 'on' : ''} onClick={() => setTab('store')}>
             <span>🏪 Store & Delivery</span>
           </button>
           <button className={tab === 'fraud' ? 'on' : ''} onClick={() => setTab('fraud')}>
             <span>🛡️ Fraud Shield</span>
           </button>
+          <button className={tab === 'appearance' ? 'on' : ''} onClick={() => setTab('appearance')}><span>✦ Storefront Design</span></button>
+          <button className={tab === 'content' ? 'on' : ''} onClick={() => setTab('content')}><span>✎ Homepage Content</span></button>
+          <button className={tab === 'frontend' ? 'on' : ''} onClick={() => setTab('frontend')}><span>✦ Frontend Editor</span></button>
         </div>
       </div>
 
@@ -7739,6 +7786,36 @@ function SettingsAdmin() {
           )}
         </div>
       )}
+
+      {tab === 'home' && <div className="sa-card" style={{ padding: 24, display: 'grid', gap: 14 }}>
+        <div><h3 style={{ margin: 0, color: '#fff' }}>Homepage product sections</h3><p className="dim">Choose which category shelves appear and how many items each shelf shows.</p></div>
+        {homepageSections.map((section, index) => <div key={section.id || index} style={{ display: 'grid', gridTemplateColumns: 'minmax(160px,1fr) minmax(180px,1fr) 110px auto', gap: 10, alignItems: 'end', padding: 12, border: '1px solid rgba(255,255,255,.1)', borderRadius: 10 }}>
+          <label>Section title<input value={section.title || ''} onChange={(e) => setF((s: any) => ({ ...s, homepageSections: s.homepageSections.map((x: any, i: number) => i === index ? { ...x, title: e.target.value } : x) }))} /></label>
+          <label>Category<select value={section.category || ''} onChange={(e) => setF((s: any) => ({ ...s, homepageSections: s.homepageSections.map((x: any, i: number) => i === index ? { ...x, category: e.target.value } : x) }))}><option value="">Select a category</option>{storeCategories.map((c) => <option key={c.id || c.slug} value={c.id || c.slug}>{c.name}</option>)}</select></label>
+          <label>Product count<input type="number" min={1} max={40} value={section.count || 8} onChange={(e) => setF((s: any) => ({ ...s, homepageSections: s.homepageSections.map((x: any, i: number) => i === index ? { ...x, count: Number(e.target.value) || 1 } : x) }))} /></label>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}><label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={section.active !== false} onChange={(e) => setF((s: any) => ({ ...s, homepageSections: s.homepageSections.map((x: any, i: number) => i === index ? { ...x, active: e.target.checked } : x) }))} />Show</label><button type="button" className="sa-btn ghost small" onClick={() => setF((s: any) => ({ ...s, homepageSections: s.homepageSections.filter((_: any, i: number) => i !== index) }))}>Remove</button></div>
+          <details style={{ gridColumn: '1 / -1' }}><summary style={{ cursor: 'pointer', color: '#cbd5e1' }}>Choose exact products ({(section.productIds || []).length} selected; empty uses category)</summary><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 7, maxHeight: 200, overflow: 'auto', marginTop: 10 }}>{availableProducts.filter((product) => !section.category || product.category === section.category).map((product) => { const ids = (section.productIds || []).map(String); return <label key={product.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 6, background: ids.includes(String(product.id)) ? 'rgba(236,72,153,.12)' : 'rgba(255,255,255,.03)' }}><input type="checkbox" checked={ids.includes(String(product.id))} onChange={(e) => setF((s: any) => ({ ...s, homepageSections: s.homepageSections.map((x: any, i: number) => i === index ? { ...x, productIds: e.target.checked ? [...new Set([...(x.productIds || []).map(String), String(product.id)])] : (x.productIds || []).map(String).filter((id: string) => id !== String(product.id)) } : x) }))} />{product.name}</label>; })}</div></details>
+        </div>)}
+        <button className="sa-btn ghost" type="button" onClick={() => setF((s: any) => ({ ...s, homepageSections: [...(s.homepageSections || []), { id: `section-${Date.now()}`, title: 'New Collection', category: storeCategories[0]?.id || storeCategories[0]?.slug || '', count: 8, active: true }] }))}>＋ Add category section</button>
+      </div>}
+
+      {tab === 'app' && <div className="sa-card" style={{ padding: 24, maxWidth: 850, display: 'grid', gap: 14 }}>
+        <div><h3 style={{ margin: 0, color: '#fff' }}>Baby Wear Admin APK</h3><p className="dim">Private admin download only. This APK is never shown on the customer storefront.</p></div>
+        <label>App version<input value={f.apkVersion || ''} onChange={set('apkVersion')} placeholder="e.g. 2.4.4" /></label>
+        <label className="sa-btn" style={{ cursor: 'pointer', width: 'fit-content' }}>{uploadingApk ? 'Uploading…' : 'Upload private APK'}<input type="file" accept=".apk,application/vnd.android.package-archive" disabled={uploadingApk} onChange={(e) => void uploadAdminApk(e.target.files?.[0])} style={{ display: 'none' }} /></label>
+        <button className="sa-btn ghost" type="button" onClick={() => void downloadAdminApk()}>Download current admin APK</button>
+      </div>}
+
+      {tab === 'appearance' && <div className="sa-card" style={{ padding: 24, maxWidth: 900 }}><h3 style={{ color: '#fff' }}>Storefront design</h3><div className="sa-sgrid">
+        <label>Accent color<div style={{ display: 'flex', gap: 8 }}><input type="color" value={f.appearance?.accent || '#ec4899'} onChange={(e) => setF((s: any) => ({ ...s, appearance: { ...s.appearance, accent: e.target.value } }))} /><input value={f.appearance?.accent || '#ec4899'} onChange={(e) => setF((s: any) => ({ ...s, appearance: { ...s.appearance, accent: e.target.value } }))} /></div></label>
+        <label>Products per row · desktop<select value={f.appearance?.desktopColumns || 4} onChange={(e) => setF((s: any) => ({ ...s, appearance: { ...s.appearance, desktopColumns: Number(e.target.value) } }))}><option value={2}>2 columns</option><option value={3}>3 columns</option><option value={4}>4 columns</option></select></label>
+        <label>Products per row · mobile<select value={f.appearance?.mobileColumns || 2} onChange={(e) => setF((s: any) => ({ ...s, appearance: { ...s.appearance, mobileColumns: Number(e.target.value) } }))}><option value={1}>1 column</option><option value={2}>2 columns</option></select></label>
+        <label>Product image style<select value={f.appearance?.imageFit || 'cover'} onChange={(e) => setF((s: any) => ({ ...s, appearance: { ...s.appearance, imageFit: e.target.value } }))}><option value="cover">Fill frame</option><option value="contain">Show full product</option></select></label>
+      </div></div>}
+
+      {tab === 'content' && <div className="sa-card" style={{ padding: 24, display: 'grid', gap: 12 }}><h3 style={{ color: '#fff' }}>Homepage content</h3><p className="dim">Edit the visible homepage headings. Leave blank to use the Baby Wear default.</p>{homeTextFields.map(([key, label]) => <label key={key}>{label}<input value={f.homeContent?.[key] || ''} onChange={(e) => setHomeText(key, e.target.value)} /></label>)}</div>}
+
+      {tab === 'frontend' && <div className="sa-card" style={{ padding: 24, display: 'grid', gap: 10 }}><h3 style={{ color: '#fff' }}>Frontend section visibility</h3><p className="dim">Turn storefront sections on or off. Save All Changes, then refresh the store.</p>{sectionControls.map(([key, label]) => <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, background: '#1c1830', borderRadius: 8 }}><input type="checkbox" checked={f.siteContent?.sections?.[key] !== false} onChange={(e) => setSiteSection(key, e.target.checked)} />{label}</label>)}</div>}
 
       {/* TAB 3: STORE & DELIVERY */}
       {tab === 'store' && (
