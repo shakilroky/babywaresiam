@@ -77,8 +77,9 @@ export function App() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewsAvg, setReviewsAvg] = useState(4.9);
+  const [reviewsAvg, setReviewsAvg] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSizes, setSelectedSizes] = useState<Record<string, string>>({});
@@ -89,10 +90,24 @@ export function App() {
     storeName: 'Baby Wear',
     hotline: '01633-617136',
     whatsapp: '8801633617136',
+    announce: '👶 নরম সুতি পোশাক · সারাদেশে ক্যাশ অন ডেলিভারি',
+    logo: '/uploads/baby-wear-logo.png',
+    sliders: [],
     freeShipThreshold: 2000,
     deliveryInside: 70,
     deliveryOutside: 130,
   });
+  const heroSlides = useMemo(
+    () => (Array.isArray(storeSettings.sliders) ? storeSettings.sliders : []).filter((slide: any) => slide?.active !== false && (slide?.image || slide?.mobileImage)),
+    [storeSettings.sliders],
+  );
+  useEffect(() => {
+    if (heroSlides.length < 2) return;
+    const timer = window.setInterval(() => setActiveHeroSlide((index) => (index + 1) % heroSlides.length), 7000);
+    return () => window.clearInterval(timer);
+  }, [heroSlides.length]);
+  const announcementText = String(storeSettings.announce || '').replace(/\s*[·•]\s*(?:হটলাইন|Hotline)\s*:.*/i, '').trim();
+  const announcementIncludesHotline = /হটলাইন|hotline/i.test(String(storeSettings.announce || ''));
 
   // Modals & Drawers
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
@@ -183,10 +198,13 @@ export function App() {
   useEffect(() => {
     const fetchStore = async () => {
       try {
+        const readJson = (path: string, fallback: any) => fetch(path)
+          .then((r) => { if (!r.ok) throw new Error(`Request failed: ${path}`); return r.json(); })
+          .catch(() => fallback);
         const [catList, prodList, setRes] = await Promise.all([
-          fetch('/api/categories').then((r) => r.json()).catch(() => []),
-          fetch('/api/products').then((r) => r.json()).catch(() => []),
-          fetch('/api/settings').then((r) => r.json()).catch(() => ({})),
+          readJson('/api/categories', []),
+          readJson('/api/products', []),
+          readJson('/api/settings', {}),
         ]);
 
         if (Array.isArray(catList) && catList.length > 0) {
@@ -206,14 +224,17 @@ export function App() {
           setSelectedSizes(initSizes);
         }
 
-        if (setRes && setRes.storeName) {
+        if (setRes && typeof setRes === 'object' && !Array.isArray(setRes)) {
           setStoreSettings({
             storeName: setRes.storeName || 'Baby Wear',
             hotline: setRes.phone || '01633-617136',
             whatsapp: setRes.whatsapp || '8801633617136',
-            freeShipThreshold: setRes.freeShipThreshold || 2000,
-            deliveryInside: setRes.deliveryInside || 70,
-            deliveryOutside: setRes.deliveryOutside || 130,
+            announce: setRes.announce || '👶 নরম সুতি পোশাক · সারাদেশে ক্যাশ অন ডেলিভারি',
+            logo: setRes.logo || '/uploads/baby-wear-logo.png',
+            sliders: Array.isArray(setRes.sliders) ? setRes.sliders : [],
+            freeShipThreshold: setRes.freeShipThreshold ?? 2000,
+            deliveryInside: setRes.deliveryInside ?? 70,
+            deliveryOutside: setRes.deliveryOutside ?? 130,
           });
         }
       } catch (e) {
@@ -326,12 +347,12 @@ export function App() {
     ? directCheckoutItem.product.price * directCheckoutItem.qty
     : cartSubtotal;
 
-  const isFreeDelivery = checkoutItemsTotal >= (storeSettings.freeShipThreshold || 2000);
+  const isFreeDelivery = checkoutItemsTotal >= (storeSettings.freeShipThreshold ?? 2000);
   const deliveryFee = isFreeDelivery
     ? 0
     : deliveryArea === 'inside'
-    ? storeSettings.deliveryInside || 70
-    : storeSettings.deliveryOutside || 130;
+    ? storeSettings.deliveryInside ?? 70
+    : storeSettings.deliveryOutside ?? 130;
 
   const discountAmount = appliedCoupon ? appliedCoupon.discount : 0;
   const grandTotal = Math.max(0, checkoutItemsTotal + deliveryFee - discountAmount);
@@ -431,11 +452,13 @@ export function App() {
     setTrackLoading(true);
     setTrackResult(null);
     try {
-      const res = await fetch(`/api/orders/track?q=${encodeURIComponent(trackQuery.trim())}`).then((r) => r.json());
-      if (res && res.length) {
-        setTrackResult(res[0]);
-      } else if (res && res.id) {
+      const query = trackQuery.trim();
+      const isPhone = /^[+\d\s()-]{8,}$/.test(query);
+      const res = await fetch(`/api/track?${isPhone ? 'phone' : 'id'}=${encodeURIComponent(query)}`).then((r) => r.json());
+      if (res && res.id) {
         setTrackResult(res);
+      } else if (res && Array.isArray(res) && res.length) {
+        setTrackResult(res[0]);
       } else {
         setTrackResult({ notFound: true });
       }
@@ -598,8 +621,8 @@ export function App() {
             <div className="bw-p-meta-bar">
               <div className="bw-p-stars">
                 <StarIcon size={18} color="#F59E0B" />
-                <span>{p.rating || 5.0}</span>
-                <span className="bw-p-rev-count">({p.ratingCount || 48} ভেরিফাইড প্যারেন্ট রিভিউ)</span>
+                <span>{p.rating ?? '—'}</span>
+                <span className="bw-p-rev-count">{p.ratingCount ? `(${p.ratingCount}টি প্যারেন্ট রিভিউ)` : '(এখনো রিভিউ নেই)'}</span>
               </div>
               <div className="bw-stock-chip">
                 <span className="bw-stock-dot"></span>
@@ -953,8 +976,8 @@ export function App() {
 
           {/* Rating */}
           <div className="bw-card-meta-row">
-            <span className="bw-card-stars">⭐ {p.rating || 4.9}</span>
-            <span>({p.ratingCount || 45}+ রিভিউ)</span>
+            <span className="bw-card-stars">{p.rating != null ? `⭐ ${p.rating}` : '⭐ নতুন'}</span>
+            <span>{p.ratingCount ? `(${p.ratingCount}+ রিভিউ)` : '(রিভিউ আসছে)'}</span>
           </div>
 
           {/* Size Selector */}
@@ -1045,11 +1068,11 @@ export function App() {
       {/* Top Announcement Bar */}
       <div className="bw-topbar">
         <div className="bw-topbar-item">
-          👶 ১০০% অর্গানিক নরম সুতি ফেব্রিক · সংবেদনশীল ত্বকে শতভাগ নিরাপদ · ফ্রি ডেলিভারি ৳২,০০০+ অর্ডারে
+          {announcementText}
         </div>
-        <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
+        {!announcementIncludesHotline && <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
           📞 হটলাইন: {storeSettings.hotline}
-        </a>
+        </a>}
       </div>
 
       {/* Main Header */}
@@ -1075,7 +1098,7 @@ export function App() {
             }}
           >
             <div className="bw-logo-badge">
-              <img src="/uploads/baby-wear-logo.png" alt="Baby Wear Logo" />
+              <img src={storeSettings.logo} alt={`${storeSettings.storeName} Logo`} />
             </div>
             <div className="bw-brand-text">
               <div className="bw-brand-title">
@@ -1315,18 +1338,19 @@ export function App() {
       ) : (
         <>
           {/* Hero Showcase Section */}
-      <section className="bw-hero">
+      {(() => {
+        const heroSlide = heroSlides.length ? heroSlides[activeHeroSlide % heroSlides.length] : null;
+        return <section className="bw-hero">
         <div className="bw-hero-card">
           <div>
             <div className="bw-hero-pill">
-              🧸 আপনার সোনামণির কোমল ত্বকের জন্য সেরা পছন্দ
+              {heroSlide?.badge || '🧸 আপনার সোনামণির কোমল ত্বকের জন্য সেরা পছন্দ'}
             </div>
             <h1 className="bw-hero-title">
-              সবচেয়ে নরম ও আরামদায়ক <br />
-              <span>বেবি পোশাকের রাজকীয় কালেকশন</span>
+              {heroSlide?.title || <>সবচেয়ে নরম ও আরামদায়ক <br /><span>বেবি পোশাকের রাজকীয় কালেকশন</span></>}
             </h1>
             <p className="bw-hero-desc">
-              ১০০% পিওর ব্রিদেবল কম্বড সুতি কাপড়ে তৈরি। বাচ্চার কোমল সংবেদনশীল ত্বকে দেবে চুলকানি ও অ্যালার্জি মুক্ত পরম স্বস্তি।
+              {heroSlide?.subtitle || 'নরম ও শ্বাস-প্রশ্বাস চলাচল করে এমন সুতি কাপড়ে তৈরি পোশাক—আপনার সোনামণির প্রতিদিনের আরামের জন্য।'}
             </p>
 
             <div className="bw-hero-cta-group">
@@ -1335,11 +1359,19 @@ export function App() {
                 className="bw-btn bw-btn-pink"
                 onClick={(e) => {
                   e.preventDefault();
-                  setActiveCategory('all');
-                  document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+                  const target = String(heroSlide?.btnLink || 'shop').replace(/^#/, '');
+                  const categoryKey = target.startsWith('category:') ? target.slice('category:'.length) : target;
+                  const category = categories.find((c) => c.id === categoryKey || c.slug === categoryKey);
+                  if (category) {
+                    setActiveCategory(category.id);
+                    document.getElementById(`cat-${category.id}`)?.scrollIntoView({ behavior: 'smooth' });
+                  } else {
+                    setActiveCategory('all');
+                    document.getElementById('catalog')?.scrollIntoView({ behavior: 'smooth' });
+                  }
                 }}
               >
-                👶 সম্পূর্ণ কালেকশন দেখুন
+                {heroSlide?.btnText || '👶 সম্পূর্ণ কালেকশন দেখুন'}
               </a>
 
               <button
@@ -1363,21 +1395,28 @@ export function App() {
           </div>
 
           <div className="bw-hero-image-box">
-            <img
-              src="https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&w=900&q=85"
-              alt="Baby Wear Luxury Collection"
-              className="bw-hero-img"
-            />
+            <picture>
+              {heroSlide?.mobileImage && <source media="(max-width: 640px)" srcSet={heroSlide.mobileImage} />}
+              <img src={heroSlide?.image || '/uploads/baby-wear-logo.png'} alt={heroSlide?.title || 'Baby Wear Collection'} className="bw-hero-img" />
+            </picture>
             <div className="bw-hero-floating-badge">
-              <span style={{ fontSize: 24 }}>⭐</span>
+              <span style={{ fontSize: 24 }}>{reviews.length ? '⭐' : '🧸'}</span>
               <div>
-                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block', lineHeight: 1.3 }}>৪.৯/৫ স্টার রেটিং</b>
-                <span style={{ fontSize: 11.5, color: '#64748B', lineHeight: 1.4 }}>১২,৫০০+ সন্তুষ্ট মা-বাবা সারাদেশে</span>
+                <b style={{ fontSize: 13.5, color: '#0F172A', display: 'block', lineHeight: 1.3 }}>{reviews.length ? `${reviewsAvg.toFixed(1)}/৫ অভিভাবক রেটিং` : 'নরম আরাম, প্রতিদিন'}</b>
+                <span style={{ fontSize: 11.5, color: '#64748B', lineHeight: 1.4 }}>{reviews.length ? `${reviews.length}টি যাচাইকৃত মতামত` : 'ছোট্ট সোনামণির জন্য যত্নে বাছাই'}</span>
               </div>
             </div>
+            {heroSlides.length > 1 && (
+              <div className="bw-hero-slide-dots" aria-label="প্রচার স্লাইড নির্বাচন">
+                {heroSlides.map((slide: any, index: number) => (
+                  <button key={slide.id || index} type="button" aria-label={`${index + 1} নম্বর স্লাইড`} aria-current={index === activeHeroSlide ? 'true' : undefined} onClick={() => setActiveHeroSlide(index)} />
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
+      })()}
 
           {/* Trust & Features Bar */}
           <section className="bw-features-bar">
@@ -1426,8 +1465,8 @@ export function App() {
           <section className="bw-category-grid-section">
             <div className="bw-cat-grid-header">
               <h2 className="bw-section-title">
-                <span style={{ color: '#0284C7' }}>পছন্দের </span>
-                <span style={{ color: '#EC4899' }}>বেবি কালেকশন</span>
+                <span>পছন্দের </span>
+                <span>বেবি কালেকশন</span>
               </h2>
               <p className="bw-section-subtitle">
                 ১০৮০×১০৮০ স্কয়ার প্রিমিয়াম লুক সহ আপনার বাবুর বয়সের সাথে মানানসই ক্যাটাগরি বেছে নিন
@@ -1583,7 +1622,7 @@ export function App() {
               <span style={{ color: '#0284C7' }}>ফিডব্যাক ও অভিজ্ঞতা</span>
             </h2>
             <p className="bw-section-subtitle" style={{ textAlign: 'left' }}>
-              আমাদের গ্রাহকদের আসল অভিজ্ঞতা ও ছবি · রেটিং: <b>⭐ {reviewsAvg}/৫</b> ({reviews.length}+ রিভিউ)
+              আমাদের গ্রাহকদের আসল অভিজ্ঞতা ও ছবি · রেটিং: <b>⭐ {reviews.length ? `${reviewsAvg.toFixed(1)}/৫` : 'এখনো রিভিউ নেই'}</b> ({reviews.length}টি রিভিউ)
             </p>
           </div>
 
@@ -2489,7 +2528,7 @@ export function App() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
               <img
-                src="/uploads/baby-wear-logo.png"
+                src={storeSettings.logo}
                 alt="Baby Wear"
                 style={{ width: 48, height: 48, borderRadius: '50%', background: '#FFF' }}
               />

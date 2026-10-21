@@ -818,8 +818,8 @@ function resolveAuth(req) {
   if (!token) return null;
   const session = sessions.get(token);
   if (!session) {
-    const masterToken = process.env.ADMIN_TOKEN || 'dot_master_admin_token_2026';
-    if (token === masterToken || token === 'dot_master_admin_token_2026' || token === '074fe3a7777e1d0eb5a5fb18') {
+    const configuredAdminToken = process.env.ADMIN_TOKEN;
+    if (configuredAdminToken && token === configuredAdminToken) {
       return { role: 'owner', name: 'Owner', username: 'owner', email: getOwnerEmail(), expiresAt: Date.now() + SESSION_TTL_MS };
     }
     return null;

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import qrcode from 'qrcode-generator';
-import { Html5Qrcode } from 'html5-qrcode';
 import './admin.css';
 import { taka, getCategories, fetchMasterColors, createMasterColor, deleteMasterColor, type MasterColor } from './api';
 import { WhatsAppIcon } from './icons';
@@ -7168,6 +7167,8 @@ function FraudDetectorAdmin({ embedded = false }: { embedded?: boolean }) {
 
 function SettingsAdmin() {
   const [f, setF] = useState<any>(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [settingsError, setSettingsError] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<'brand' | 'slider' | 'store' | 'fraud'>('brand');
@@ -7189,15 +7190,29 @@ function SettingsAdmin() {
   const [editingSlideIdx, setEditingSlideIdx] = useState<number | null>(null);
   const [pickerTarget, setPickerTarget] = useState<{ title: string; currentImg: string; onSelect: (url: string) => void } | null>(null);
 
-  useEffect(() => {
-    fetch('/api/settings').then((r) => r.json()).then((s) => {
+  const loadSettings = async () => {
+    setLoadingSettings(true);
+    setSettingsError('');
+    try {
+      const response = await fetch('/api/settings');
+      if (!response.ok) throw new Error(`Settings request failed (${response.status})`);
+      const s = await response.json();
+      if (!s || typeof s !== 'object' || Array.isArray(s)) throw new Error('Settings response was empty or invalid');
       setF({
         ...s,
         logo: s.logo || '',
         favicon: s.favicon || '',
         sliders: Array.isArray(s.sliders) ? s.sliders : [],
       });
-    }).catch(() => {});
+    } catch (error: any) {
+      setSettingsError(error?.message || 'Could not load store settings.');
+    } finally {
+      setLoadingSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadSettings();
   }, []);
 
   const set = (k: string) => (e: any) => setF((s: any) => ({ ...s, [k]: e.target.value }));
@@ -7252,7 +7267,8 @@ function SettingsAdmin() {
   const save = async () => {
     setBusy(true); setSaved(false);
     try {
-      await aFetch('/settings', { method: 'PUT', body: JSON.stringify(f) });
+      const response = await aFetch('/settings', { method: 'PUT', body: JSON.stringify(f) });
+      if (!response.ok) throw new Error(`Settings save failed (${response.status})`);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (e: any) {
@@ -7324,7 +7340,17 @@ function SettingsAdmin() {
     setEditingSlideIdx(null);
   };
 
-  if (!f) return <div className="sa-top"><h1>Settings</h1></div>;
+  if (!f) return (
+    <div className="sa-top">
+      <div>
+        <h1>Settings</h1>
+        <p className="dim" role={settingsError ? 'alert' : 'status'} style={{ marginTop: 6 }}>
+          {settingsError || (loadingSettings ? 'Loading store settings…' : 'Store settings are unavailable.')}
+        </p>
+      </div>
+      {settingsError && <button className="sa-btn" onClick={() => void loadSettings()}>Retry</button>}
+    </div>
+  );
 
   return (
     <>
@@ -12587,12 +12613,14 @@ function ScannerAdmin() {
       setCameraActive(false);
       return;
     }
-    let html5QrCode: Html5Qrcode | null = null;
+    let html5QrCode: import('html5-qrcode').Html5Qrcode | null = null;
     let mounted = true;
 
-    try {
-      html5QrCode = new Html5Qrcode('qr-reader');
-      html5QrCode
+    import('html5-qrcode').then(({ Html5Qrcode }) => {
+      if (!mounted) return;
+      const scanner = new Html5Qrcode('qr-reader');
+      html5QrCode = scanner;
+      return scanner
         .start(
           { facingMode: 'environment' },
           { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1.0 },
@@ -12613,10 +12641,10 @@ function ScannerAdmin() {
             setCamError('Camera not available or permission denied. You can use Barcode Gun or manual entry below.');
           }
         });
-    } catch (e: any) {
+    }).catch((e: any) => {
       setCameraActive(false);
       setCamError(e?.message || 'Camera init failed');
-    }
+    });
 
     return () => {
       mounted = false;

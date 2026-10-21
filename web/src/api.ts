@@ -359,10 +359,12 @@ export async function logoutCustomer(): Promise<void> {
 }
 
 export async function getAdminCustomers(): Promise<any[]> {
-  const token = localStorage.getItem('dot_admin_token') || 'dot_master_admin_token_2026';
+  const token = localStorage.getItem('dot_admin') || '';
+  if (!token) throw new Error('Admin sign-in is required');
   const r = await fetch('/api/admin/customers', {
     headers: { 'x-admin-token': token }
   });
+  if (!r.ok) throw new Error('Could not load admin customers');
   const d = await r.json();
   return d.customers || [];
 }
