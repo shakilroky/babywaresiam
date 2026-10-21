@@ -355,7 +355,11 @@ app.delete('/api/colors/:id', (req, res) => {
   res.json({ success: true, colors: next });
 });
 
-app.get('/api/settings', (_req, res) => res.json(getSettings()));
+app.get('/api/settings', (_req, res) => {
+  const publicSettings = { ...getSettings() };
+  delete publicSettings.ownerPassword;
+  res.json(publicSettings);
+});
 app.put('/api/settings', adminAuth, requireRole('owner', 'manager'), (req, res) => {
   const b = req.body || {};
   const num = (v, d) => { const n = parseInt(v, 10); return isNaN(n) ? d : Math.max(0, n); };
