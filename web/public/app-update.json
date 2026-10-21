@@ -1,0 +1,8 @@
+{
+  "versionCode": 10,
+  "versionName": "2.4.4",
+  "apkUrl": "https://raw.githubusercontent.com/metroomaa-cell/metromaa/main/web/dist/ShakilEcom.apk",
+  "sha256": "9457aeb21690488154273e4f82dee3262ee26eea3620f24d5bd634cc6402aeff",
+  "releaseNotes": "Expired store sessions now prompt a fresh sign-in. Store accounts remain managed separately in Settings. Android will ask you to confirm the install."
+}
+
