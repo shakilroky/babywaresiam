@@ -14,7 +14,7 @@
     "@whiskeysockets/baileys": "^6.7.9",
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "nodemailer": "^6.9.14",
+    "nodemailer": "10.1.7",
     "pino": "^9.4.0",
     "qrcode": "^1.5.3"
   }

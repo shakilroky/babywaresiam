@@ -88,8 +88,8 @@ export function App() {
   // Store Settings
   const [storeSettings, setStoreSettings] = useState<any>({
     storeName: 'Baby Wear',
-    hotline: '01633-617136',
-    whatsapp: '8801633617136',
+    hotline: '',
+    whatsapp: '',
     announce: '👶 নরম সুতি পোশাক · সারাদেশে ক্যাশ অন ডেলিভারি',
     logo: '/uploads/baby-wear-logo.png',
     sliders: [],
@@ -227,8 +227,8 @@ export function App() {
         if (setRes && typeof setRes === 'object' && !Array.isArray(setRes)) {
           setStoreSettings({
             storeName: setRes.storeName || 'Baby Wear',
-            hotline: setRes.phone || '01633-617136',
-            whatsapp: setRes.whatsapp || '8801633617136',
+            hotline: setRes.phone ?? '',
+            whatsapp: setRes.whatsapp ?? '',
             announce: setRes.announce || '👶 নরম সুতি পোশাক · সারাদেশে ক্যাশ অন ডেলিভারি',
             logo: setRes.logo || '/uploads/baby-wear-logo.png',
             sliders: Array.isArray(setRes.sliders) ? setRes.sliders : [],
@@ -530,9 +530,11 @@ export function App() {
     }
   };
 
-  const whatsappLink = `https://wa.me/${storeSettings.whatsapp}?text=${encodeURIComponent(
+  const hotline = String(storeSettings.hotline || '').trim();
+  const whatsappNumber = String(storeSettings.whatsapp || '').replace(/\D/g, '');
+  const whatsappLink = whatsappNumber ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
     'আসসালামু আলাইকুম, Baby Wear থেকে কিছু পোশাক সম্পর্কে জানতে চাচ্ছি।'
-  )}`;
+  )}` : '';
 
   // Dedicated Single Product Page View
   const renderSingleProductView = () => {
@@ -691,7 +693,7 @@ export function App() {
                 <span>কার্টে যোগ করুন</span>
               </button>
 
-              <a
+              {whatsappLink && <a
                 href={`https://wa.me/${storeSettings.whatsapp}?text=${encodeURIComponent(
                   `আসসালামু আলাইকুম, আমি Baby Wear এর "${p.name}" সম্পর্কে জানতে চাচ্ছি।`
                 )}`}
@@ -701,7 +703,7 @@ export function App() {
               >
                 <WhatsAppIcon size={20} variant="official" />
                 <span>হোয়াটসঅ্যাপে সরাসরি প্রশ্ন করুন বা অর্ডার দিন</span>
-              </a>
+              </a>}
             </div>
 
             {/* Trust Badges */}
@@ -1070,8 +1072,8 @@ export function App() {
         <div className="bw-topbar-item">
           {announcementText}
         </div>
-        {!announcementIncludesHotline && <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
-          📞 হটলাইন: {storeSettings.hotline}
+        {!announcementIncludesHotline && hotline && <a href={`tel:${hotline}`} className="bw-topbar-hotline">
+          📞 হটলাইন: {hotline}
         </a>}
       </div>
 
@@ -1128,14 +1130,14 @@ export function App() {
 
           {/* Action Pills */}
           <div className="bw-actions">
-            <a href={`tel:${storeSettings.hotline}`} className="bw-action-pill">
-              📞 {storeSettings.hotline}
-            </a>
+            {hotline && <a href={`tel:${hotline}`} className="bw-action-pill">
+              📞 {hotline}
+            </a>}
 
-            <a href={whatsappLink} target="_blank" rel="noreferrer" className="bw-action-pill bw-action-wa">
+            {whatsappLink && <a href={whatsappLink} target="_blank" rel="noreferrer" className="bw-action-pill bw-action-wa">
               <WhatsAppIcon size={16} variant="official" />
               <span>WhatsApp</span>
-            </a>
+            </a>}
 
             <button
               className="bw-action-pill"
@@ -1311,14 +1313,14 @@ export function App() {
             </div>
 
             <div style={{ padding: '16px 20px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC' }}>
-              <a
-                href={`tel:${storeSettings.hotline}`}
+              {hotline && <a
+                href={`tel:${hotline}`}
                 className="bw-btn bw-btn-blue"
                 style={{ width: '100%', padding: '10px', fontSize: 13, marginBottom: 8 }}
               >
-                📞 কল দিন: {storeSettings.hotline}
-              </a>
-              <a
+                📞 কল দিন: {hotline}
+              </a>}
+              {whatsappLink && <a
                 href={whatsappLink}
                 target="_blank"
                 rel="noreferrer"
@@ -1327,7 +1329,7 @@ export function App() {
               >
                 <WhatsAppIcon size={18} variant="white" />
                 <span>WhatsApp চ্যাট</span>
-              </a>
+              </a>}
             </div>
           </div>
         </div>
@@ -1572,6 +1574,11 @@ export function App() {
             );
           })()}
         </section>
+      ) : products.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '52px 18px', color: '#64748B' }}>
+          <h3 style={{ margin: '0 0 8px', color: '#0F172A' }}>পণ্য শিগগির যোগ করা হবে</h3>
+          <p style={{ margin: 0 }}>নতুন পণ্য যুক্ত হলে এখানে দেখা যাবে।</p>
+        </div>
       ) : (
         /* Default: Categorized Homepage Shelf Display */
         <div>
@@ -1693,13 +1700,13 @@ export function App() {
     )}
 
       {/* Floating WhatsApp Button */}
-      <div
+      {whatsappLink && <div
         className="bw-floating-wa"
         onClick={() => window.open(whatsappLink, '_blank')}
         title="Chat on WhatsApp"
       >
         <WhatsAppIcon size={32} variant="official" />
-      </div>
+      </div>}
 
       {/* Sticky Mobile Bottom Bar (Multi-Page Navigation on Phones) */}
       <div className="bw-mobile-bar">
@@ -2236,7 +2243,7 @@ export function App() {
                     নতুন কেনাকাটা করুন
                   </button>
 
-                  <button
+                  {whatsappNumber && <button
                     className="bw-btn bw-btn-pink"
                     style={{ flex: 1 }}
                     onClick={() => {
@@ -2249,7 +2256,7 @@ export function App() {
                     }}
                   >
                     💬 WhatsApp এ আপডেট
-                  </button>
+                  </button>}
                 </div>
               </div>
             ) : (
@@ -2548,12 +2555,14 @@ export function App() {
               {categories.slice(0, 6).map((c) => (
                 <li key={c.id}>
                   <a
-                    href={`#cat-${c.id}`}
+                    href="#shop"
                     style={{ color: 'inherit', textDecoration: 'none' }}
-                    onClick={() => {
-                      setActiveCategory('all');
+                    onClick={(event) => {
+                      event.preventDefault();
+                      setActiveCategory(c.id);
                       const el = document.getElementById(`cat-${c.id}`);
                       if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      else window.scrollTo({ top: 0, behavior: 'smooth' });
                     }}
                   >
                     {c.name}
@@ -2589,28 +2598,20 @@ export function App() {
           <div>
             <h4 style={{ fontSize: 15, color: '#F8FAFC', marginBottom: 14 }}>কাস্টমার সাপোর্ট</h4>
             <div style={{ fontSize: 13, color: '#94A3B8', lineHeight: 2 }}>
-              <div>
+              {hotline && <div>
                 📞 হটলাইন:{' '}
-                <a href={`tel:${storeSettings.hotline}`} style={{ color: '#38BDF8', textDecoration: 'none' }}>
-                  {storeSettings.hotline}
+                <a href={`tel:${hotline}`} style={{ color: '#38BDF8', textDecoration: 'none' }}>
+                  {hotline}
                 </a>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              </div>}
+              {whatsappLink && <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <WhatsAppIcon size={16} variant="official" />
                 <span>হোয়াটসঅ্যাপ:</span>{' '}
                 <a href={whatsappLink} target="_blank" rel="noreferrer" style={{ color: '#22C55E', textDecoration: 'none' }}>
-                  {storeSettings.hotline}
+                  {hotline || whatsappNumber}
                 </a>
-              </div>
-              <div>✉️ ইমেইল: support@babywear.com.bd</div>
-              <div>🕒 কাস্টমার সার্ভিস: সকাল ৯টা - রাত ১১টা</div>
-              <a
-                href="/shakilecom"
-                download="ShakilEcom.apk"
-                style={{ display: 'inline-flex', marginTop: 10, padding: '8px 12px', borderRadius: 999, background: '#0EA5E920', border: '1px solid #38BDF866', color: '#BAE6FD', textDecoration: 'none', fontWeight: 700 }}
-              >
-                📲 Shakil Ecom APK ডাউনলোড · v2.4.4
-              </a>
+              </div>}
+              {!hotline && !whatsappLink && <div>সাপোর্টের যোগাযোগ নম্বর শিগগির যোগ করা হবে।</div>}
             </div>
           </div>
         </div>

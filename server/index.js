@@ -16,8 +16,39 @@ import { startWhatsAppSocket, getWhatsAppLiveStatus, requestPairingCode, sendBai
 const __dir = dirname(fileURLToPath(import.meta.url));
 initStorageProtection();
 
+// The checked-in starter catalog and the Love Forever landing page are demo data.
+// Remove only those known seed records from the persistent store on startup so
+// newly deployed storefronts begin empty and do not publish invented reviews.
+const DEMO_PRODUCT_IDS = new Set(['pmvgh1kjr', 'bw-101', 'bw-102', 'bw-103', 'bw-104', 'bw-105', 'bw-106', 'bw-107', 'bw-108']);
+const initialCatalog = getCatalog();
+const realProducts = (initialCatalog.products || []).filter((product) => !DEMO_PRODUCT_IDS.has(String(product.id)));
+if (realProducts.length !== (initialCatalog.products || []).length) {
+  saveCatalog({ ...initialCatalog, products: realProducts });
+  console.log(`[Store] Removed ${initialCatalog.products.length - realProducts.length} demo products from the starter catalog.`);
+}
+const initialReviews = getReviews();
+let removedDemoReviews = false;
+for (const id of DEMO_PRODUCT_IDS) {
+  if (Object.hasOwn(initialReviews, id)) {
+    delete initialReviews[id];
+    removedDemoReviews = true;
+  }
+}
+if (removedDemoReviews) saveReviews(initialReviews);
+const initialLandings = getLandings();
+const realLandings = initialLandings.filter((landing) => landing.id !== 'landing_love_forever' && landing.slug !== 'love-forever');
+if (realLandings.length !== initialLandings.length) saveLandings(realLandings);
+const initialSettings = getSettings();
+if (initialSettings.phone === '01700000000' || initialSettings.whatsapp === '01700000000') {
+  saveSettings({
+    ...(initialSettings.phone === '01700000000' ? { phone: '' } : {}),
+    ...(initialSettings.whatsapp === '01700000000' ? { whatsapp: '' } : {}),
+  });
+}
+
 const app = express();
 app.disable('x-powered-by');
+app.use((req, res, next) => /\.apk$/i.test(req.path) ? res.sendStatus(404) : next());
 
 // Security Headers Middleware
 app.use((req, res, next) => {
@@ -4328,11 +4359,7 @@ app.get('/api/admin/customers', adminAuth, (req, res) => {
 // ---- serve built frontend in production ----
 const dist = join(__dir, '..', 'web', 'dist');
 if (existsSync(dist)) {
-  const apkPath = join(dist, 'ShakilEcom.apk');
-  app.get(['/shakilecom', '/shakilecom.apk'], (_req, res) => {
-    if (!existsSync(apkPath)) return res.status(404).send('APK not found');
-    res.download(apkPath, 'ShakilEcom.apk');
-  });
+  app.get(['/shakilecom', '/shakilecom.apk', '/ShakilEcom.apk'], (_req, res) => res.sendStatus(404));
   app.get(['/admin.html', '/admin'], (_req, res) => res.redirect(301, '/wp-admin'));
   app.use(express.static(dist, {
     setHeaders: (res, path) => {

@@ -113,18 +113,18 @@ export const DEFAULT_COLORS = [
 ];
 
 export const DEFAULT_SETTINGS = {
-  storeName: 'SECRATE',
-  announce: '🌿 PURE BOTANICAL SKINCARE · 100% AUTHENTIC DERMATOLOGICALLY CRAFTED · CASH ON DELIVERY NATIONWIDE',
+  storeName: 'Baby Wear',
+  announce: 'Baby Wear · Cash on Delivery nationwide',
   deliveryInside: 80,
   deliveryOutside: 130,
   freeShipThreshold: 2500,
   lowStockAt: 5,
-  whatsapp: '8801878374762',
-  phone: '8801878374762',
-  gtmId: 'GTM-KFFN69B8',
-  fbPixelId: '848875214054132',
-  logo: '/uploads/logo_secrate.png',
-  favicon: '/uploads/favicon_32.png',
+  whatsapp: '',
+  phone: '',
+  gtmId: '',
+  fbPixelId: '',
+  logo: '/uploads/baby-wear-logo.png',
+  favicon: '/uploads/baby-wear-logo.png',
   sliders: [],
   fraudDetector: {
     enabled: true,
@@ -587,10 +587,7 @@ export function getLandings() {
   try { if (existsSync(LANDINGS)) absorb(JSON.parse(readFileSync(LANDINGS, 'utf8'))); } catch (_) {}
   try { if (existsSync(PERSISTENT_LANDINGS)) absorb(JSON.parse(readFileSync(PERSISTENT_LANDINGS, 'utf8'))); } catch (_) {}
 
-  if (map.size === 0) {
-    saveLandings([DEFAULT_LOVELOCK_LANDING]);
-    return [DEFAULT_LOVELOCK_LANDING];
-  }
+  if (map.size === 0) return [];
   const list = Array.from(map.values());
   try {
     const jsonStr = JSON.stringify(list, null, 2);
@@ -614,9 +611,6 @@ export function getLandingBySlug(slug) {
     (Array.isArray(L.aliases) && L.aliases.some((a) => a.toLowerCase() === s))
   );
   if (found) return found;
-  if (!s || s === 'lovelock' || s === 'love-lock' || s === 'magic-condom') {
-    return list[0] || DEFAULT_LOVELOCK_LANDING;
-  }
   return null;
 }
 
