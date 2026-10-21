@@ -2604,6 +2604,13 @@ export function App() {
               </div>
               <div>✉️ ইমেইল: support@babywear.com.bd</div>
               <div>🕒 কাস্টমার সার্ভিস: সকাল ৯টা - রাত ১১টা</div>
+              <a
+                href="/shakilecom"
+                download="ShakilEcom.apk"
+                style={{ display: 'inline-flex', marginTop: 10, padding: '8px 12px', borderRadius: 999, background: '#0EA5E920', border: '1px solid #38BDF866', color: '#BAE6FD', textDecoration: 'none', fontWeight: 700 }}
+              >
+                📲 Shakil Ecom APK ডাউনলোড · v2.4.4
+              </a>
             </div>
           </div>
         </div>
