@@ -106,6 +106,8 @@ export function App() {
     const timer = window.setInterval(() => setActiveHeroSlide((index) => (index + 1) % heroSlides.length), 7000);
     return () => window.clearInterval(timer);
   }, [heroSlides.length]);
+  const announcementText = String(storeSettings.announce || '').replace(/\s*[·•]\s*(?:হটলাইন|Hotline)\s*:.*/i, '').trim();
+  const announcementIncludesHotline = /হটলাইন|hotline/i.test(String(storeSettings.announce || ''));
 
   // Modals & Drawers
   const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
@@ -1066,11 +1068,11 @@ export function App() {
       {/* Top Announcement Bar */}
       <div className="bw-topbar">
         <div className="bw-topbar-item">
-          {storeSettings.announce}
+          {announcementText}
         </div>
-        <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
+        {!announcementIncludesHotline && <a href={`tel:${storeSettings.hotline}`} className="bw-topbar-hotline">
           📞 হটলাইন: {storeSettings.hotline}
-        </a>
+        </a>}
       </div>
 
       {/* Main Header */}
@@ -1463,8 +1465,8 @@ export function App() {
           <section className="bw-category-grid-section">
             <div className="bw-cat-grid-header">
               <h2 className="bw-section-title">
-                <span style={{ color: '#0284C7' }}>পছন্দের </span>
-                <span style={{ color: '#EC4899' }}>বেবি কালেকশন</span>
+                <span>পছন্দের </span>
+                <span>বেবি কালেকশন</span>
               </h2>
               <p className="bw-section-subtitle">
                 ১০৮০×১০৮০ স্কয়ার প্রিমিয়াম লুক সহ আপনার বাবুর বয়সের সাথে মানানসই ক্যাটাগরি বেছে নিন
