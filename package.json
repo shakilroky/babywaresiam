@@ -6,8 +6,8 @@
     "start": "node server/index.js",
     "dev:server": "node --watch server/index.js",
     "dev:web": "npm --prefix web run dev",
-    "build:web": "npm --prefix web run build",
-    "build": "npm --prefix web run build"
+    "build:web": "npm --prefix web install --include=dev && npm --prefix web run build",
+    "build": "npm run build:web"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
