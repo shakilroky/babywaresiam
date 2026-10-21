@@ -1360,6 +1360,12 @@ app.put('/api/admin/security-email', adminAuth, requireRole('owner'), (req, res)
 
 app.get('/api/admin/me', adminAuth, (req, res) => res.json(req.admin));
 
+app.post('/api/admin/logout', adminAuth, (req, res) => {
+  const token = req.get('x-admin-token') || '';
+  sessions.delete(token);
+  res.json({ ok: true });
+});
+
 app.get('/api/admin/users', adminAuth, requireRole('owner'), (_q, res) => res.json(getUsers().map((u) => ({ id: u.id, username: u.username, name: u.name, email: u.email || '', role: u.role, skipOtp: !!u.skipOtp, allowedProducts: Array.isArray(u.allowedProducts) ? u.allowedProducts : [] }))));
 
 app.post('/api/admin/users', adminAuth, requireRole('owner'), async (req, res) => {
