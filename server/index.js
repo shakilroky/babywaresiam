@@ -2227,6 +2227,7 @@ function getCourierTrackUrl(acc, consignment) {
 async function bookCourier(acc, o) {
   if (!acc) return { ok: false, error: 'Courier account not found' };
   const prov = String(acc.provider || '').toLowerCase();
+  const codAmount = o.paymentStatus === 'paid' ? 0 : Number(o.total || 0);
 
   // 1. PATHAO
   if (prov === 'pathao' || (acc.clientId && acc.username)) {
@@ -2250,7 +2251,7 @@ async function bookCourier(acc, o) {
         special_instruction: o.customer?.note || 'Deliver discreetly',
         item_quantity: 1,
         item_weight: 0.5,
-        amount_to_collect: Number(o.total || 0),
+        amount_to_collect: codAmount,
         item_description: o.items?.map((i) => `${i.name} x${i.qty}`).join(', ') || 'Order Parcel',
       };
       const r = await fetch('https://api-hermes.pathao.com/aladdin/api/v1/orders', {
@@ -2294,7 +2295,7 @@ async function bookCourier(acc, o) {
       recipient_name: o.customer?.name || 'Customer',
       recipient_phone: cleanBDPhone(o.customer?.phone),
       recipient_address: fullAddr || 'Dhaka City, Dhaka',
-      cod_amount: Number(o.total || 0),
+      cod_amount: codAmount,
       note: o.customer?.note || 'Deliver discreetly',
     };
     try {
@@ -2431,7 +2432,7 @@ async function bookCourier(acc, o) {
       zone_id: zoneId,
       item_weight: itemWeight,
       item_quantity: 1,
-      collectable_amount: Number(o.total || 0),
+      collectable_amount: codAmount,
       product_description: o.items?.map((i) => `${i.name} x${i.qty}`).join(', ') || 'Order Parcel',
     };
 
@@ -2474,7 +2475,7 @@ async function bookCourier(acc, o) {
       customer_phone: cleanBDPhone(o.customer?.phone),
       customer_address: o.customer?.address || 'N/A',
       merchant_invoice_id: cleanInvoice,
-      cash_collection_amount: Number(o.total || 0),
+      cash_collection_amount: codAmount,
       parcel_weight: 500,
       instruction: o.customer?.note || 'Deliver discreetly',
       ...(acc.storeId ? { pickup_store_id: parseInt(acc.storeId, 10) } : {}),
@@ -2503,7 +2504,7 @@ async function bookCourier(acc, o) {
 
   // 5. CUSTOM / GENERIC FALLBACK
   if (!acc.bookUrl) return { ok: false, error: 'This courier account has no booking URL configured.' };
-  const map = { name: o.customer?.name || '', phone: cleanBDPhone(o.customer?.phone), address: o.customer?.address || '', amount: o.total, cod: o.total, invoice: o.id, id: o.id, note: o.customer?.note || '', apiKey: acc.apiKey || '', apiSecret: acc.apiSecret || '', items: o.items?.map((i) => `${i.name} x${i.qty}`).join(', ') || '' };
+  const map = { name: o.customer?.name || '', phone: cleanBDPhone(o.customer?.phone), address: o.customer?.address || '', amount: codAmount, cod: codAmount, invoice: o.id, id: o.id, note: o.customer?.note || '', apiKey: acc.apiKey || '', apiSecret: acc.apiSecret || '', items: o.items?.map((i) => `${i.name} x${i.qty}`).join(', ') || '' };
   let headers = { 'Content-Type': 'application/json' };
   try { if (acc.bookHeaders) headers = { ...headers, ...JSON.parse(fillTpl(acc.bookHeaders, map)) }; } catch {}
   const method = (acc.bookMethod || 'POST').toUpperCase();

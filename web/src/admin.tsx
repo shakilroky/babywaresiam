@@ -703,10 +703,11 @@ export function MediaPickerModal({
   );
 }
 
+let PRINT_BRANDING = { storeName: 'Store', logo: '' };
 const PRINT_CSS = `*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#1a1a1a;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .pg{width:210mm;padding:18mm 16mm;margin:0 auto}.pg+.pg{border-top:1px dashed #ccc}
 .doc-top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #1a1a1a;padding-bottom:16px}
-.brand{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}.brand span{color:#c08a5e}
+.brand{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}.brand span{color:#c08a5e}.brand-logo{display:block;max-width:190px;max-height:64px;object-fit:contain;object-position:left center}
 .brand-sub{font-size:10px;color:#999;letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
 .doc-meta{text-align:right}.doc-title{font-size:20px;font-weight:800;letter-spacing:.08em}
 .doc-id{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#444;margin-top:5px}
@@ -733,16 +734,19 @@ td.chk,th.chk{width:26px}td.chk i{display:inline-block;width:15px;height:15px;bo
 @media print{.pg{page-break-after:always;padding:14mm}.pg:last-child{page-break-after:auto}@page{size:A4;margin:0}}`;
 
 function invoiceBody(o: any) {
+  const brand = PRINT_BRANDING.logo ? `<img class="brand-logo" src="${PRINT_BRANDING.logo}" alt="${PRINT_BRANDING.storeName}"/>` : `<div class="brand">${PRINT_BRANDING.storeName}</div>`;
   const rows = o.items.map((it: any, i: number) => `<tr><td class="c">${i + 1}</td><td><div style="display:flex;align-items:center;gap:8px">${it.image ? `<img src="${it.image}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid #eee;flex:none"/>` : ''}<span>${it.name}</span></div></td><td class="c">${it.qty}</td><td class="r">৳${it.price ?? Math.round(it.subtotal / it.qty)}</td><td class="r">৳${it.subtotal}</td></tr>`).join('');
   const cour = o.courier && o.courier.name ? `<div class="col"><div class="lbl">Courier</div><p class="nm">${o.courier.name}</p>${o.courier.consignment ? `<p>Tracking: ${o.courier.consignment}</p>` : ''}</div>` : '';
   const disc = o.discount ? `<div class="totrow"><span>Discount${o.coupon ? ' (' + o.coupon + ')' : ''}</span><span>&minus;৳${o.discount}</span></div>` : '';
-  return `<div class="pg"><div class="doc-top"><div><div class="brand">dot<span>.</span></div><div class="brand-sub">intimate self-care</div></div><div class="doc-meta"><div class="doc-title">INVOICE</div><div class="doc-id">${o.id}</div><div class="doc-date">${new Date(o.createdAt).toLocaleString()}</div></div></div><div class="cols"><div class="col"><div class="lbl">Deliver to</div><p class="nm">${o.customer.name}</p><p>${o.customer.phone}</p><p>${o.customer.address}${o.customer.area ? ' (' + o.customer.area + ' dhaka)' : ''}</p></div><div class="col"><div class="lbl">Payment</div><span class="pay">Cash on delivery</span></div>${cour}</div><table><thead><tr><th class="c">#</th><th>Item</th><th class="c">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table><div class="totbox"><div class="totrow"><span>Subtotal</span><span>৳${o.itemsTotal ?? o.total}</span></div><div class="totrow"><span>Delivery</span><span>${o.delivery ? '৳' + o.delivery : 'Free'}</span></div>${disc}<div class="totrow grand"><span>Total (COD)</span><span>৳${o.total}</span></div></div><div class="foot">Thank you for shopping with dot. &middot; Every order ships in plain, unbranded packaging.<br>This is a computer-generated invoice and needs no signature.</div></div>`;
+  return `<div class="pg"><div class="doc-top"><div>${brand}<div class="brand-sub">${PRINT_BRANDING.storeName}</div></div><div class="doc-meta"><div class="doc-title">INVOICE</div><div class="doc-id">${o.id}</div><div class="doc-date">${new Date(o.createdAt).toLocaleString()}</div></div></div><div class="cols"><div class="col"><div class="lbl">Deliver to</div><p class="nm">${o.customer.name}</p><p>${o.customer.phone}</p><p>${o.customer.address}${o.customer.area ? ' (' + o.customer.area + ' dhaka)' : ''}</p></div><div class="col"><div class="lbl">Payment</div><span class="pay">${o.paymentStatus === 'paid' ? 'Paid' : 'Cash on delivery · unpaid'}</span></div>${cour}</div><table><thead><tr><th class="c">#</th><th>Item</th><th class="c">Qty</th><th class="r">Price</th><th class="r">Amount</th></tr></thead><tbody>${rows}</tbody></table><div class="totbox"><div class="totrow"><span>Subtotal</span><span>৳${o.itemsTotal ?? o.total}</span></div><div class="totrow"><span>Delivery</span><span>${o.delivery ? '৳' + o.delivery : 'Free'}</span></div>${disc}<div class="totrow grand"><span>Order total</span><span>৳${o.total}</span></div><div class="totrow"><span>Amount due</span><span>৳${o.paymentStatus === 'paid' ? 0 : o.total}</span></div></div><div class="foot">Thank you for shopping with ${PRINT_BRANDING.storeName}.<br>This is a computer-generated invoice and needs no signature.</div></div>`;
 }
 function slipBody(o: any) {
+  const brand = PRINT_BRANDING.logo ? `<img class="brand-logo" src="${PRINT_BRANDING.logo}" alt="${PRINT_BRANDING.storeName}"/>` : `<div class="brand">${PRINT_BRANDING.storeName}</div>`;
+  const collectableAmount = o.paymentStatus === 'paid' ? 0 : Number(o.total || 0);
   const rows = o.items.map((it: any) => `<tr><td class="chk"><i></i></td><td><div style="display:flex;align-items:center;gap:8px">${it.image ? `<img src="${it.image}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;border:1px solid #ccc;flex:none"/>` : ''}<b>${it.name}</b></div></td><td class="r" style="font-size:16px;font-weight:700">&times; ${it.qty}</td></tr>`).join('');
   const cour = o.courier && o.courier.name ? `<div class="cols" style="margin-top:14px"><div class="col"><div class="lbl">Courier</div><p class="nm">${o.courier.name}</p></div>${o.courier.consignment ? `<div class="col"><div class="lbl">Tracking no.</div><p class="nm">${o.courier.consignment}</p></div>` : ''}</div>` : '';
   const qr = `<div class="qrbox"><div class="qrline">scan &middot; pack &middot; return</div>${qrSvg(o.id)}<div class="qid">${o.id}</div></div>`;
-  return `<div class="pg"><div class="doc-top"><div><div class="brand">dot<span>.</span></div><div class="brand-sub">packing slip</div><div class="doc-date" style="margin-top:8px">${new Date(o.createdAt).toLocaleDateString()}</div></div>${qr}</div><div class="slip-to"><div class="lbl">Ship to</div><div class="nm">${o.customer.name}</div><p>${o.customer.phone}</p><p>${o.customer.address}${o.customer.area ? ' (' + o.customer.area + ' dhaka)' : ''}</p></div>${cour}<div class="cod"><span class="k">Collect on delivery</span><span class="v">৳${o.total}</span></div><table><thead><tr><th class="chk"></th><th>Item</th><th class="r">Qty</th></tr></thead><tbody>${rows}</tbody></table>${o.customer.note ? `<p style="margin-top:16px;font-size:12px;color:#777">Customer note: ${o.customer.note}</p>` : ''}<div class="foot">Scan the QR to receive or return this order &middot; plain, unbranded packaging &middot; dot.</div></div>`;
+  return `<div class="pg"><div class="doc-top"><div>${brand}<div class="brand-sub">packing slip · ${PRINT_BRANDING.storeName}</div><div class="doc-date" style="margin-top:8px">${new Date(o.createdAt).toLocaleDateString()}</div></div>${qr}</div><div class="slip-to"><div class="lbl">Ship to</div><div class="nm">${o.customer.name}</div><p>${o.customer.phone}</p><p>${o.customer.address}${o.customer.area ? ' (' + o.customer.area + ' dhaka)' : ''}</p></div>${cour}<div class="cod"><span class="k">${o.paymentStatus === 'paid' ? 'Paid · do not collect' : 'Collect on delivery'}</span><span class="v">৳${collectableAmount}</span></div><table><thead><tr><th class="chk"></th><th>Item</th><th class="r">Qty</th></tr></thead><tbody>${rows}</tbody></table>${o.customer.note ? `<p style="margin-top:16px;font-size:12px;color:#777">Customer note: ${o.customer.note}</p>` : ''}<div class="foot">Scan the QR to receive or return this order · ${PRINT_BRANDING.storeName}.</div></div>`;
 }
 function printDoc(title: string, inner: string) {
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_CSS}</style></head><body>${inner}<script>window.onload=function(){window.print()}<\/script></body></html>`;
@@ -800,7 +804,7 @@ export function Admin() {
   }, []);
   useEffect(() => {
     if (!authed) return;
-    fetch('/api/settings').then((r) => r.json()).then((s) => setStore(s.storeName || 'dot.')).catch(() => {});
+    fetch('/api/settings').then((r) => r.json()).then((s) => { const storeName = s.storeName || 'Store'; PRINT_BRANDING = { storeName, logo: s.logo || '' }; setStore(storeName); }).catch(() => {});
     aFetch('/admin/me').then((r) => (r.ok ? r.json() : null)).then((m) => { if (m) setMe(m); else { localStorage.removeItem(KEY); setAuthed(false); } }).catch(() => {});
   }, [authed]);
   useEffect(() => {
@@ -4422,7 +4426,7 @@ function OrderDrawer({ o, orders, onClose, onSaved }: { o: any; orders?: any[]; 
             <button className="sa-btn ghost" onClick={() => printInvoice({ ...o, customer: { ...o.customer, name: custName, phone: custPhone, address: custAddress }, items, delivery, discount, total: grandTotal })}>
               Print Invoice
             </button>
-            <button className="sa-btn ghost" onClick={() => printSlips([{ ...o, customer: { ...o.customer, name: custName, phone: custPhone, address: custAddress }, items, delivery, discount, total: grandTotal }])}>
+            <button className="sa-btn ghost" onClick={() => printSlips([{ ...o, paymentStatus, customer: { ...o.customer, name: custName, phone: custPhone, address: custAddress }, items, delivery, discount, total: grandTotal }])}>
               Print Packing Slip
             </button>
           </div>
