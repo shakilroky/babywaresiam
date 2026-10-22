@@ -465,9 +465,14 @@ app.get('/api/products/:slug', (req, res) => {
 
 // ---- checkout (cash on delivery) ----
 app.post('/api/orders', (req, res) => {
-  const { items, customer } = req.body || {};
+  const { items, customer, attribution: rawAttribution } = req.body || {};
   if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ error: 'cart is empty' });
   const c = customer || {};
+  const attribution = rawAttribution && typeof rawAttribution === 'object' ? {
+    channel: String(rawAttribution.channel || '').trim().slice(0, 100), source: String(rawAttribution.source || '').trim().slice(0, 100),
+    medium: String(rawAttribution.medium || '').trim().slice(0, 100), campaign: String(rawAttribution.campaign || '').trim().slice(0, 120),
+    referrer: String(rawAttribution.referrer || '').trim().slice(0, 100),
+  } : null;
   if (!c.name || c.name.trim().length < 2) return res.status(400).json({ error: 'please enter your name' });
   if (!BD_PHONE.test(String(c.phone || '').trim())) return res.status(400).json({ error: 'enter a valid bangladeshi mobile number' });
   if (!c.address || c.address.trim().length < 6) return res.status(400).json({ error: 'please enter a full delivery address' });
@@ -714,6 +719,7 @@ app.post('/api/orders', (req, res) => {
     status: 'pending',
     payment: 'cash_on_delivery',
     source: String(c.source || (landingSlug ? 'l/' + landingSlug : 'direct')).slice(0, 60),
+    attribution,
     landing: landingSlug,
     deviceId,
     ip: clientIp,

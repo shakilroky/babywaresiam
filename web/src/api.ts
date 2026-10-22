@@ -126,6 +126,34 @@ export function getSource(): string {
   } catch { return 'direct'; }
 }
 
+export type OrderAttribution = { channel: string; source: string; medium: string; campaign: string; referrer: string };
+export function getOrderAttribution(): OrderAttribution {
+  const key = 'dot_order_attribution_v1';
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) return JSON.parse(saved) as OrderAttribution;
+    const params = new URLSearchParams(location.search);
+    let referrer = '';
+    try { referrer = document.referrer ? new URL(document.referrer).hostname.replace(/^www\./, '') : ''; } catch {}
+    const source = (params.get('utm_source') || params.get('ref') || params.get('source') || (params.get('fbclid') ? 'facebook' : '') || (params.get('ttclid') ? 'tiktok' : '') || (params.get('gclid') ? 'google' : '') || referrer).trim().toLowerCase().slice(0, 100);
+    const medium = (params.get('utm_medium') || '').trim().toLowerCase().slice(0, 100);
+    const campaign = (params.get('utm_campaign') || '').trim().slice(0, 120);
+    let channel = 'Direct';
+    if (/facebook|fb\.com|fb\.me/.test(source)) channel = 'Facebook';
+    else if (/instagram/.test(source)) channel = 'Instagram';
+    else if (/tiktok/.test(source)) channel = 'TikTok';
+    else if (/youtube/.test(source)) channel = 'YouTube';
+    else if (/google/.test(source)) channel = 'Google';
+    else if (/whatsapp/.test(source)) channel = 'WhatsApp';
+    else if (source) channel = source;
+    if (medium && /paid|cpc|ppc|ads|paid_social/.test(medium)) channel += ' Ads';
+    const result = { channel: channel.slice(0, 100), source, medium, campaign, referrer: referrer.slice(0, 100) };
+    localStorage.setItem(key, JSON.stringify(result));
+    return result;
+  } catch { return { channel: 'Direct', source: '', medium: '', campaign: '', referrer: '' }; }
+}
+getOrderAttribution();
+
 export function getDeviceId(): string {
   try {
     let id = localStorage.getItem('dot_did');
@@ -152,7 +180,7 @@ export async function placeOrder(p: OrderPayload) {
       'Content-Type': 'application/json',
       'x-device-id': did,
     },
-    body: JSON.stringify({ ...p, deviceId: did }),
+    body: JSON.stringify({ ...p, deviceId: did, attribution: getOrderAttribution() }),
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data.error || 'could not place order');

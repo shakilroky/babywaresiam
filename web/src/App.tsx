@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { getOrderAttribution } from './api';
 import { BD_GEO, BD_DISTRICTS_BN } from './bd-geo';
 import { SearchableSelect } from './SearchableSelect';
 import {
@@ -437,6 +438,7 @@ export function App() {
       total: grandTotal,
       payment: 'cash_on_delivery',
       source: 'web_storefront',
+      attribution: getOrderAttribution(),
     };
 
     try {

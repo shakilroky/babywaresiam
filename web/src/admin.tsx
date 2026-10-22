@@ -2083,7 +2083,7 @@ function Dashboard({ onNav }: { onNav?: (tab: string) => void }) {
                   <b>{o.customer.name}</b>
                   <div className="dim small">{o.customer.phone}</div>
                 </td>
-                <td><span className="sa-tag-source">🌐 {originLabel(o.source)}</span></td>
+                <td><span className="sa-tag-source">🌐 {originLabel(o.source)}</span><div className="dim small" style={{ marginTop: 4 }}>Channel: {o.attribution?.channel || 'Untracked'}</div>{o.attribution?.medium && <div className="dim small">Medium: {o.attribution.medium}</div>}</td>
                 <td>
                   {o.courier?.name ? (
                     <span>{o.courier.name}{o.courier.consignment ? ` #${o.courier.consignment}` : ''}</span>
@@ -3074,6 +3074,7 @@ function OrdersAdmin() {
                 </div>
                 <div style={{ marginTop: 2 }}>
                   <OriginBadge source={o.source} style={{ fontSize: 10, padding: '2px 6px' }} />
+                  <div className="traffic-attribution">Channel · {o.attribution?.channel || 'Untracked'}{o.attribution?.medium ? ` / ${o.attribution.medium}` : ''}</div>
                 </div>
               </div>
 
@@ -4188,6 +4189,12 @@ function OrderDrawer({ o, orders, onClose, onSaved }: { o: any; orders?: any[]; 
                 <span className="sa-om-k">Origin / Source</span>
                 <span className="sa-om-v"><span className="sa-tag-source">🌐 {originLabel(o.source)}</span></span>
               </div>
+              <div className="sa-om-kv"><span className="sa-om-k">Marketing channel</span><span className="sa-om-v">{o.attribution?.channel || 'Untracked'}{o.attribution?.medium ? ` · ${o.attribution.medium}` : ''}</span></div>
+              {o.attribution?.campaign && <div className="sa-om-kv"><span className="sa-om-k">Campaign</span><span className="sa-om-v">{o.attribution.campaign}</span></div>}
+              {o.attribution?.referrer && <div className="sa-om-kv"><span className="sa-om-k">Referrer</span><span className="sa-om-v">{o.attribution.referrer}</span></div>}
+              <div className="sa-om-kv"><span className="sa-om-k">Marketing channel</span><span className="sa-om-v">{o.attribution?.channel || 'Untracked'}{o.attribution?.medium ? ` · ${o.attribution.medium}` : ''}</span></div>
+              {o.attribution?.campaign && <div className="sa-om-kv"><span className="sa-om-k">Campaign</span><span className="sa-om-v">{o.attribution.campaign}</span></div>}
+              {o.attribution?.referrer && <div className="sa-om-kv"><span className="sa-om-k">Referrer</span><span className="sa-om-v">{o.attribution.referrer}</span></div>}
               <div className="sa-om-kv">
                 <span className="sa-om-k">Customer Note</span>
                 {isEditing ? (
