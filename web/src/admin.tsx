@@ -3598,6 +3598,7 @@ function OrderDrawer({ o, orders, onClose, onSaved }: { o: any; orders?: any[]; 
   // Editable pricing
   const [delivery, setDelivery] = useState<number>(o.delivery != null ? o.delivery : (o.customer?.area === 'inside' ? 60 : 120));
   const [discount, setDiscount] = useState<number>(o.discount || 0);
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid'>(o.paymentStatus === 'paid' ? 'paid' : 'unpaid');
 
   // Catalog products for "Add Product"
   const [allProducts, setAllProducts] = useState<any[]>([]);
@@ -3734,7 +3735,7 @@ function OrderDrawer({ o, orders, onClose, onSaved }: { o: any; orders?: any[]; 
     setBusy(true);
     setSaveMsg('');
     try {
-      await aFetch('/orders/' + o.id, {
+      const response = await aFetch('/orders/' + o.id, {
         method: 'PATCH',
         body: JSON.stringify({
           status,
@@ -3755,8 +3756,13 @@ function OrderDrawer({ o, orders, onClose, onSaved }: { o: any; orders?: any[]; 
           delivery: Number(delivery || 0),
           discount: Number(discount || 0),
           total: grandTotal,
+          paymentStatus,
         }),
       });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || 'Could not save order changes');
+      }
       setSaveMsg('Saved successfully! ✓');
       setIsEditing(false);
       window.dispatchEvent(new CustomEvent('admin-orders-updated', { detail: { id: o.id, status } }));
@@ -4390,7 +4396,21 @@ function OrderDrawer({ o, orders, onClose, onSaved }: { o: any; orders?: any[]; 
 
               <div className="sa-om-calc-row" style={{ paddingTop: 6 }}>
                 <span className="dim">Payment Method</span>
-                <span className="sa-badge b-pending">Cash on Delivery · Unpaid</span>
+                {isEditing ? (
+                  <select
+                    value={paymentStatus}
+                    onChange={(e) => setPaymentStatus(e.target.value === 'paid' ? 'paid' : 'unpaid')}
+                    aria-label="Customer payment status"
+                    style={{ minWidth: 140, padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(148,163,184,.35)', background: '#171421', color: '#f8fafc' }}
+                  >
+                    <option value="unpaid">Cash on Delivery · Unpaid</option>
+                    <option value="paid">Cash on Delivery · Paid</option>
+                  </select>
+                ) : (
+                  <span className={'sa-badge ' + (paymentStatus === 'paid' ? 'b-delivered' : 'b-pending')}>
+                    Cash on Delivery · {paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                  </span>
+                )}
               </div>
             </div>
           </div>

@@ -417,6 +417,10 @@ export function updateOrder(id, patch) {
     };
   }
   if (typeof patch.adminNote === 'string') o.adminNote = patch.adminNote.slice(0, 500);
+  if (patch.paymentStatus === 'paid' || patch.paymentStatus === 'unpaid') {
+    o.paymentStatus = patch.paymentStatus;
+    o.paymentUpdatedAt = new Date().toISOString();
+  }
 
   if (patch.customer && typeof patch.customer === 'object') {
     o.customer = {

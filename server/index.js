@@ -1525,8 +1525,14 @@ app.patch('/api/orders/:id', adminAuth, (req, res) => {
     const hasAccess = (before.items || []).some((it) => allowed.includes(String(it.id)) || allowed.includes(String(it.slug)));
     if (!hasAccess) return res.status(403).json({ error: 'You do not have permission for this order' });
   }
-  const { status, courier, adminNote, customer, items, delivery, discount, itemsTotal, total } = req.body || {};
-  const o = updateOrder(req.params.id, { status, courier, adminNote, customer, items, delivery, discount, itemsTotal, total });
+  const { status, courier, adminNote, customer, items, delivery, discount, itemsTotal, total, paymentStatus } = req.body || {};
+  if (paymentStatus !== undefined && !['paid', 'unpaid'].includes(String(paymentStatus))) {
+    return res.status(400).json({ error: 'paymentStatus must be paid or unpaid' });
+  }
+  if (paymentStatus !== undefined && !['owner', 'manager'].includes(req.admin.role)) {
+    return res.status(403).json({ error: 'Only an owner or manager can update payment status' });
+  }
+  const o = updateOrder(req.params.id, { status, courier, adminNote, customer, items, delivery, discount, itemsTotal, total, paymentStatus });
   if (status && before && before.status !== status) notifyOrder(o, 'status');
   res.json(o);
 });
