@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import qrcode from 'qrcode-generator';
+import JsBarcode from 'jsbarcode';
 import './admin.css';
 import { taka, getCategories, fetchMasterColors, createMasterColor, deleteMasterColor, type MasterColor } from './api';
 import { WhatsAppIcon } from './icons';
@@ -9,6 +10,15 @@ const getTok = () => localStorage.getItem(KEY) || '';
 function qrSvg(text: string) {
   try { const qr = qrcode(0, 'M'); qr.addData(text); qr.make(); return qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); }
   catch { return ''; }
+}
+function barcodeSvg(text: string) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+  try {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    JsBarcode(svg, value, { format: 'CODE128', displayValue: false, margin: 0, width: 1, height: 28, lineColor: '#111111', background: '#ffffff' });
+    return svg.outerHTML;
+  } catch { return ''; }
 }
 const slugify = (s: string) => String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 async function aFetch(path: string, opts: any = {}) {
@@ -733,6 +743,20 @@ td.chk,th.chk{width:26px}td.chk i{display:inline-block;width:15px;height:15px;bo
 .qrline{display:flex;align-items:center;gap:7px;justify-content:flex-end;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#bbb;margin-bottom:5px}
 @media print{.pg{page-break-after:always;padding:14mm}.pg:last-child{page-break-after:auto}@page{size:A4;margin:0}}`;
 
+const THERMAL_SLIP_CSS = `*{box-sizing:border-box}html,body{width:50mm;margin:0;padding:0;background:#fff;color:#111;font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.pg{width:50mm;height:75mm;padding:2.4mm;margin:0 auto;overflow:hidden;page-break-after:always;break-after:page;display:flex;flex-direction:column;gap:1.2mm}
+.pg:last-child{page-break-after:auto;break-after:auto}.doc-top{display:flex;justify-content:space-between;align-items:center;border-bottom:.3mm solid #111;padding:0 0 1.2mm;min-height:9mm}
+.brand{font-size:11px;font-weight:800;line-height:1}.brand span{color:#555}.brand-logo{display:block;max-width:18mm;max-height:7mm;object-fit:contain;object-position:left center}
+.brand-sub{font-size:5px;color:#555;letter-spacing:.08em;text-transform:uppercase;margin-top:.6mm}.doc-date{font-size:5.5px;color:#555;margin-top:.8mm}.qrbox{text-align:center;flex:none}.qrbox svg{display:block;width:13mm;height:13mm;margin:0 0 0 auto}.qrbox .qid{font-family:monospace;font-size:5px;color:#222;margin-top:.3mm;letter-spacing:0}
+.qrline{font-size:4px;letter-spacing:.03em;text-transform:uppercase;color:#555;margin-bottom:.2mm}.slip-to{border:.25mm solid #333;border-radius:1mm;padding:1.3mm 1.6mm;margin:0;min-width:0}
+.lbl{font-size:5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#555;margin-bottom:.4mm}.slip-to .nm{font-size:9px;font-weight:800;line-height:1.12;overflow-wrap:anywhere}.slip-to p{margin:.35mm 0 0;font-size:7px;line-height:1.15;color:#222;overflow-wrap:anywhere}
+.courier-info{font-size:6px;line-height:1.1;overflow-wrap:anywhere}.courier-info .lbl{display:inline;margin:0 .8mm 0 0}.courier-info b{font-size:6px}.consignment{font-family:monospace;font-size:5.5px}
+.cols{display:flex;gap:2mm;margin:0}.col{flex:1;min-width:0}.col p{margin:0;font-size:6px;line-height:1.15;color:#222}.col .nm{font-size:7px;font-weight:700;overflow-wrap:anywhere}
+.cod{display:flex;justify-content:space-between;align-items:center;background:#111;color:#fff;border-radius:1mm;padding:1.2mm 1.6mm;margin:0;min-height:6mm}.cod .k{font-size:5px;letter-spacing:.04em;text-transform:uppercase}.cod .v{font-size:10px;font-weight:800}
+table{width:100%;border-collapse:collapse;margin:0}thead th{font-size:5px;font-weight:700;text-transform:uppercase;color:#555;text-align:left;padding:0 0 .6mm;border-bottom:.2mm solid #555}tbody td{font-size:6px;padding:.5mm 0;border-bottom:.15mm solid #ddd;color:#222;line-height:1.1}th.r,td.r{text-align:right}
+.courier-barcode-wrap{margin-top:auto;text-align:center;border-top:.2mm solid #bbb;padding-top:.8mm;min-height:11mm}.courier-barcode-label{font-size:5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#333}.courier-barcode{display:block;width:100%;height:7mm;margin:.5mm auto 0}.courier-barcode-id{font-family:monospace;font-size:5px;line-height:1;color:#222;margin-top:.3mm;letter-spacing:.02em}.foot{margin:0;border:0;padding:0;font-size:4.5px;color:#555;text-align:center;line-height:1.1}
+@page{size:50mm 75mm;margin:0}@media print{html,body{width:50mm;height:auto}.pg{width:50mm;height:75mm;padding:2.4mm;overflow:hidden}}`;
+
 function invoiceBody(o: any) {
   const brand = PRINT_BRANDING.logo ? `<img class="brand-logo" src="${PRINT_BRANDING.logo}" alt="${PRINT_BRANDING.storeName}"/>` : `<div class="brand">${PRINT_BRANDING.storeName}</div>`;
   const rows = o.items.map((it: any, i: number) => `<tr><td class="c">${i + 1}</td><td><div style="display:flex;align-items:center;gap:8px">${it.image ? `<img src="${it.image}" style="width:28px;height:28px;border-radius:4px;object-fit:cover;border:1px solid #eee;flex:none"/>` : ''}<span>${it.name}</span></div></td><td class="c">${it.qty}</td><td class="r">৳${it.price ?? Math.round(it.subtotal / it.qty)}</td><td class="r">৳${it.subtotal}</td></tr>`).join('');
@@ -743,19 +767,23 @@ function invoiceBody(o: any) {
 function slipBody(o: any) {
   const brand = PRINT_BRANDING.logo ? `<img class="brand-logo" src="${PRINT_BRANDING.logo}" alt="${PRINT_BRANDING.storeName}"/>` : `<div class="brand">${PRINT_BRANDING.storeName}</div>`;
   const collectableAmount = o.paymentStatus === 'paid' ? 0 : Number(o.total || 0);
-  const rows = o.items.map((it: any) => `<tr><td class="chk"><i></i></td><td><div style="display:flex;align-items:center;gap:8px">${it.image ? `<img src="${it.image}" style="width:32px;height:32px;border-radius:4px;object-fit:cover;border:1px solid #ccc;flex:none"/>` : ''}<b>${it.name}</b></div></td><td class="r" style="font-size:16px;font-weight:700">&times; ${it.qty}</td></tr>`).join('');
-  const cour = o.courier && o.courier.name ? `<div class="cols" style="margin-top:14px"><div class="col"><div class="lbl">Courier</div><p class="nm">${o.courier.name}</p></div>${o.courier.consignment ? `<div class="col"><div class="lbl">Tracking no.</div><p class="nm">${o.courier.consignment}</p></div>` : ''}</div>` : '';
+  const rows = o.items.map((it: any) => `<tr><td><b>${it.name}</b></td><td class="r">&times; ${it.qty}</td></tr>`).join('');
+  const cour = o.courier?.name ? `<div class="courier-info"><span class="lbl">Courier</span><b>${o.courier.name}</b>${o.courier.consignment ? `<span class="consignment"> · ${o.courier.consignment}</span>` : ''}</div>` : '';
   const qr = `<div class="qrbox"><div class="qrline">scan &middot; pack &middot; return</div>${qrSvg(o.id)}<div class="qid">${o.id}</div></div>`;
-  return `<div class="pg"><div class="doc-top"><div>${brand}<div class="brand-sub">packing slip · ${PRINT_BRANDING.storeName}</div><div class="doc-date" style="margin-top:8px">${new Date(o.createdAt).toLocaleDateString()}</div></div>${qr}</div><div class="slip-to"><div class="lbl">Ship to</div><div class="nm">${o.customer.name}</div><p>${o.customer.phone}</p><p>${o.customer.address}${o.customer.area ? ' (' + o.customer.area + ' dhaka)' : ''}</p></div>${cour}<div class="cod"><span class="k">${o.paymentStatus === 'paid' ? 'Paid · do not collect' : 'Collect on delivery'}</span><span class="v">৳${collectableAmount}</span></div><table><thead><tr><th class="chk"></th><th>Item</th><th class="r">Qty</th></tr></thead><tbody>${rows}</tbody></table>${o.customer.note ? `<p style="margin-top:16px;font-size:12px;color:#777">Customer note: ${o.customer.note}</p>` : ''}<div class="foot">Scan the QR to receive or return this order · ${PRINT_BRANDING.storeName}.</div></div>`;
+  const courierCode = String(o.courier?.consignment || o.id || '').trim();
+  const barcode = barcodeSvg(courierCode);
+  const barcodeLabel = o.courier?.consignment ? `${o.courier.name || 'Courier'} tracking` : 'Store order reference';
+  return `<div class="pg"><div class="doc-top"><div>${brand}<div class="brand-sub">packing slip · ${PRINT_BRANDING.storeName}</div><div class="doc-date">${new Date(o.createdAt).toLocaleDateString()}</div></div>${qr}</div><div class="slip-to"><div class="lbl">Ship to</div><div class="nm">${o.customer.name}</div><p>${o.customer.phone}</p><p>${o.customer.address}${o.customer.area ? ' (' + o.customer.area + ' dhaka)' : ''}</p></div>${cour}<div class="cod"><span class="k">${o.paymentStatus === 'paid' ? 'Paid · do not collect' : 'Collect on delivery'}</span><span class="v">৳${collectableAmount}</span></div><table><thead><tr><th>Item</th><th class="r">Qty</th></tr></thead><tbody>${rows}</tbody></table><div class="courier-barcode-wrap"><div class="courier-barcode-label">${barcodeLabel}</div>${barcode}<div class="courier-barcode-id">${courierCode}</div></div><div class="foot">${PRINT_BRANDING.storeName} · Thank you</div></div>`;
 }
-function printDoc(title: string, inner: string) {
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_CSS}</style></head><body>${inner}<script>window.onload=function(){window.print()}<\/script></body></html>`;
+function printDoc(title: string, inner: string, format: 'A4' | 'label' = 'A4') {
+  const printCss = format === 'label' ? THERMAL_SLIP_CSS : PRINT_CSS;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>${printCss}</style></head><body>${inner}<script>window.onload=function(){window.print()}<\/script></body></html>`;
   const w = window.open('', '_blank');
   if (w) { w.document.write(html); w.document.close(); }
 }
 function printInvoice(o: any) { printDoc(o.id, invoiceBody(o)); }
 function printInvoices(list: any[]) { if (list.length) printDoc('invoices', list.map(invoiceBody).join('')); }
-function printSlips(list: any[]) { if (list.length) printDoc('packing slips', list.map(slipBody).join('')); }
+function printSlips(list: any[]) { if (list.length) printDoc('packing slips', list.map(slipBody).join(''), 'label'); }
 const fmt = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const Badge = ({ s }: { s: string }) => <span className={'sa-badge b-' + s}>{s}</span>;
 function useCountUp(target: number, ms = 850) {
